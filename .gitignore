@@ -1,0 +1,23 @@
+# Node
+**/node_modules/
+**/dist/
+**/dist-ssr/
+*.local
+logs
+*.log
+npm-debug.log*
+
+# Maven
+**/target/
+*.class
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
