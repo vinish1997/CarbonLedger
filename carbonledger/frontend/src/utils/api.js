@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 
+  (window.location.hostname === 'localhost' && window.location.port === '5173' 
+    ? 'http://localhost:8080/api' 
+    : '/api');
 
 // Fallback seed data stored locally if backend is unavailable
 const fallbackChallenges = [
