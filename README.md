@@ -1,117 +1,140 @@
-# CarbonLedger - Personal Carbon Footprint Tracker & Gamified Quests
+# 🌿 CarbonLedger
 
-**CarbonLedger** is a modern, game-like web application designed to help individuals calculate, track, and reduce their carbon footprint through simple actions and randomized weekly sustainability quests. 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Java Version](https://img.shields.io/badge/Java-21-orange.svg)](#)
+[![Node Version](https://img.shields.io/badge/Node-v22-blue.svg)](#)
 
----
+<p align="center">
+  <img src="https://raw.githubusercontent.com/vinish1997/CarbonLedger/main/carbonledger/frontend/public/favicon.svg" alt="CarbonLedger Logo" width="120" height="120">
+</p>
 
-## 1. System Architecture
+## 📖 Overview
+**CarbonLedger** is a personal carbon footprint calculator and gamified action tracker designed to help individuals measure emissions, log sustainable habits, and complete weekly challenges to reduce their carbon output. It empowers users to make sustainable lifestyle choices by showing tangible environmental equivalents (like trees planted and gasoline saved) for their actions.
 
-CarbonLedger is designed as a unified single-container application. The React frontend is compiled into static assets and embedded inside the Spring Boot classpath resources (`src/main/resources/static/`). This allows a single Java process to serve the frontend UI and the REST API.
+## ✨ Features
+- **Multivariate Carbon Calculator**: Computes baseline footprint across travel (car type, mileage, transit, flights), diet, home energy, and shopping habits.
+- **Gamified Weekly Quest Board**: Rotates 3 sustainability challenges from a 16-challenge pool weekly using Spring Boot `@Scheduled` CRON schedules, with manual on-demand quest rolling and countdown timers.
+- **Eco-Action Logging & Simulator**: Log carbon-reducing actions and view their real-world impact translated into trees planted, smartphones charged, and liters of gas saved.
+- **Paginated Activity Ledger**: Keeps a detailed historical timeline of all logged actions and completed challenges.
+- **Unified Single-Container Architecture**: Serves both the compiled React frontend assets and REST API endpoints from a single Spring Boot container.
 
-```mermaid
-graph TD
-    subgraph "Client Tier (Web Browser)"
-        UI[React UI / Vite] -->|State Navigation| Tab[Tabs View State]
-        UI -->|Fallback Client Simulation| LS[(Local Storage Backup)]
-    end
+## 🛠️ Tech Stack
+- **Frontend**: React 18, Vite, Lucide Icons, Vanilla Glassmorphism CSS.
+- **Backend**: Spring Boot 3.3.0, Java 21, Spring Data JPA, Hibernate.
+- **Database**: H2 In-Memory database.
+- **DevOps / Deployment**: Docker, Maven, Google Cloud Build, Google Cloud Run.
 
-    subgraph "Unified Service Container (Google Cloud Run / Port 8080)"
-        Static[Spring Boot Static Resource Handler] -->|Serves Frontend Assets| UI
-        Ctrl[Spring Boot REST Controllers] -->|JSON API Endpoints| Svc[CarbonLedger Service]
-        Svc -->|Business Logic / Baseline Calc| Repo[JPA Repositories]
-        Repo -->|In-Memory DB Schema| DB[(H2 Database)]
-    end
+## 🚀 Getting Started
 
-    UI -->|REST API Requests /api/*| Ctrl
-```
+### Prerequisites
+Make sure you have the following installed:
+- **Java Development Kit (JDK) 21**
+- **Apache Maven 3.8+**
+- **Node.js v18+ & npm**
+- **Docker** (optional, for container runs)
 
----
+### Installation
+Clone the repository and install dependencies for both services:
 
-## 2. Core Features
-
-### 1. Carbon Baseline Calculator
-- Calculates carbon footprints across four key categories: **Transportation**, **Diet**, **Energy**, and **Consumption**.
-- Provides customized recommendations based on driving distance, flight frequency, diet preferences, household size, and energy source profiles.
-
-### 2. Gamified Weekly Quest Board
-- Maintains an expansive pool of **16 sustainability challenges** (e.g. *Meatless Week, Digital Declutter, Zero Food Waste*).
-- **Auto-Rotation Scheduler**: Rotates available challenges every Monday at midnight using Spring Boot's `@Scheduled` CRON processor.
-- **Quest Reroller**: Allows users to manually roll a fresh set of challenges using a gamified "Roll New Quests" feature with spinning animations.
-- **State Integrity**: Ensures active (accepted) and completed challenges are never lost or cleared during rotations.
-
-### 3. Action Impact Simulator
-- Log actions to calculate concrete savings.
-- Displays overall environmental savings translated into equivalent real-world metrics:
-  - 🌳 **Trees Planted Equivalent** (assumes 1 tree absorbs ~22kg CO2/year).
-  - 📱 **Smartphones Charged**.
-  - ⛽ **Liters of Gasoline Saved**.
-
-### 4. Paginated Ledger History
-- Keeps a detailed ledger of all logged actions and completed challenges with pagination.
-
----
-
-## 3. Technology Stack
-
-- **Backend**: Spring Boot 3.3.0, Java 21, Spring Data JPA, Hibernate, H2 In-memory database.
-- **Frontend**: React 18, Vite, Lucide Icons, pure vanilla glassmorphism CSS styling.
-- **Dockerization**: Multi-stage docker builds compiling React using Node 22 and packaging/running under Temurin JRE 21.
-
----
-
-## 4. Local Development
-
-### Running the Backend
-From the `/carbonledger/backend` folder:
 ```bash
-mvn spring-boot:run
-```
-*Server boots on `http://localhost:8080`*
+# Clone the repository
+git clone https://github.com/vinish1997/CarbonLedger.git
+cd CarbonLedger
 
-### Running the Frontend
-From the `/carbonledger/frontend` folder:
-```bash
+# Install frontend dependencies
+cd carbonledger/frontend
 npm install
-npm run dev
+
+# Compile the backend
+cd ../backend
+mvn clean install
 ```
-*Vite launches the local hot-reload server on `http://localhost:5173`*
 
----
+### Running the Application
 
-## 5. Building the Unified Container Locally
-
-To build and run the unified single-container application locally:
-
-1. Navigate to `/carbonledger`:
+#### Option 1: Running Separately (Local Dev)
+1. **Start the Spring Boot backend**:
    ```bash
-   cd carbonledger
+   cd carbonledger/backend
+   mvn spring-boot:run
    ```
-2. Build the Docker Image:
+   *The backend will start on `http://localhost:8080`.*
+
+2. **Start the React frontend**:
    ```bash
-   docker build -t carbonledger:latest .
+   cd carbonledger/frontend
+   npm run dev
    ```
-3. Run the Container:
-   ```bash
-   docker run -p 8080:8080 carbonledger:latest
-   ```
-4. Access the full application at: **`http://localhost:8080`**
+   *The frontend dev server will launch on `http://localhost:5173`.*
 
----
+#### Option 2: Running the Unified Container (Docker)
+Build and run the entire stack in one container:
+```bash
+# Navigate to context root
+cd carbonledger
 
-## 6. Deploying to Google Cloud Run
+# Build the Docker image
+docker build -t carbonledger .
 
-We use continuous integration from GitHub using **Google Cloud Build** and **Cloud Run**:
+# Run the container
+docker run -p 8080:8080 carbonledger
+```
+*Access the unified web application at `http://localhost:8080`.*
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com).
-2. Go to **Cloud Run** and click **Create Service**.
-3. Select **"Continuously deploy new revisions from a source repository"** and connect to this repository: `vinish1997/CarbonLedger`.
-4. Configure the Build settings:
-   - **Branch**: `^main$`
-   - **Build Type**: `Dockerfile`
-   - **Context directory**: `/carbonledger`
-   - **Dockerfile path**: `Dockerfile`
-5. Configure Instance Settings:
-   - **Port**: `8080`
-   - **Memory**: Set to **1 GiB** or **2 GiB** (Spring Boot minimum).
-   - **Authentication**: Allow unauthenticated traffic.
-6. Click **Create** to trigger your build and deployment!
+## 📦 Usage Examples
+
+Below is an example of the REST payload used to submit a baseline footprint calculation to the API:
+
+```json
+POST /api/calculator/calculate
+Content-Type: application/json
+
+{
+  "carKmPerWeek": 150,
+  "carType": "PETROL",
+  "transitHoursPerWeek": 3,
+  "flightsPerYear": 2,
+  "dietType": "MEAT_LIGHT",
+  "householdSize": 2,
+  "homeEnergySource": "GRID",
+  "heatingType": "GAS",
+  "shoppingHabits": "AVERAGE"
+}
+```
+
+Response payload containing category breakdowns and total footprint in tons CO2e/year:
+```json
+{
+  "id": 1,
+  "carKmPerWeek": 150,
+  "carType": "PETROL",
+  "transitHoursPerWeek": 3,
+  "flightsPerYear": 2,
+  "dietType": "MEAT_LIGHT",
+  "householdSize": 2,
+  "homeEnergySource": "GRID",
+  "heatingType": "GAS",
+  "shoppingHabits": "AVERAGE",
+  "transportFootprint": 2.9,
+  "dietFootprint": 1.7,
+  "energyFootprint": 1.75,
+  "consumptionFootprint": 1.0,
+  "totalFootprint": 7.35
+}
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+Configure the following build/runtime variables as needed:
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `VITE_API_BASE` | Target API base URL for frontend builds | `/api` |
+
+## 🤝 Contributing
+Contributions are welcome! Please feel free to open an issue or submit a pull request on our GitHub repository. For major changes, please open an issue first to discuss what you would like to change.
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).
