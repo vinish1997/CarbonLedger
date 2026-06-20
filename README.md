@@ -12,6 +12,27 @@
 ## 📖 Overview
 **CarbonLedger** is a personal carbon footprint calculator and gamified action tracker designed to help individuals measure emissions, log sustainable habits, and complete weekly challenges to reduce their carbon output. It empowers users to make sustainable lifestyle choices by showing tangible environmental equivalents (like trees planted and gasoline saved) for their actions.
 
+### 🏗️ Architecture Design
+CarbonLedger is designed as a unified single-container application. The React frontend is compiled into static assets and embedded inside the Spring Boot classpath resources (`src/main/resources/static/`). This allows a single Java process to serve the frontend UI and the REST API.
+
+```mermaid
+graph TD
+    subgraph "Client Tier (Web Browser)"
+        UI[React UI / Vite] -->|State Navigation| Tab[Tabs View State]
+        UI -->|Fallback Client Simulation| LS[(Local Storage Backup)]
+    end
+
+    subgraph "Unified Service Container (Google Cloud Run / Port 8080)"
+        Static[Spring Boot Static Resource Handler] -->|Serves Frontend Assets| UI
+        Ctrl[Spring Boot REST Controllers] -->|JSON API Endpoints| Svc[CarbonLedger Service]
+        Svc -->|Business Logic / Baseline Calc| Repo[JPA Repositories]
+        Repo -->|In-Memory DB Schema| DB[(H2 Database)]
+    end
+
+    UI -->|REST API Requests /api/*| Ctrl
+```
+
+
 ## ✨ Features
 - **Multivariate Carbon Calculator**: Computes baseline footprint across travel (car type, mileage, transit, flights), diet, home energy, and shopping habits.
 - **Gamified Weekly Quest Board**: Rotates 3 sustainability challenges from a 16-challenge pool weekly using Spring Boot `@Scheduled` CRON schedules, with manual on-demand quest rolling and countdown timers.
