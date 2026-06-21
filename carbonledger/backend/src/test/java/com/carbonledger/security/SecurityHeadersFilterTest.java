@@ -15,9 +15,11 @@ public class SecurityHeadersFilterTest {
 
     @Test
     public void testDoFilter_HttpServletResponse() throws Exception {
-        ServletRequest request = mock(ServletRequest.class);
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
+
+        when(request.getMethod()).thenReturn("GET");
 
         filter.doFilter(request, response, chain);
 
@@ -26,6 +28,39 @@ public class SecurityHeadersFilterTest {
         verify(response).setHeader("X-XSS-Protection", "1; mode=block");
         verify(response).setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
         verify(response).setHeader(eq("Content-Security-Policy"), anyString());
+        verify(response).setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+        verify(response).setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+        verify(response).setHeader("Cross-Origin-Opener-Policy", "same-origin");
+        verify(response).setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        verify(response).setHeader("X-Permitted-Cross-Domain-Policies", "none");
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    public void testDoFilter_BlockedHttpMethods() throws Exception {
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        when(request.getMethod()).thenReturn("TRACE");
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    public void testDoFilter_AllowedHttpMethods() throws Exception {
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        when(request.getMethod()).thenReturn("GET");
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).setHeader("X-Frame-Options", "DENY");
         verify(chain).doFilter(request, response);
     }
 

@@ -29,10 +29,10 @@ export default function History({ triggerRefresh }) {
 
   const getCategoryColor = (cat) => {
     switch (cat.toUpperCase()) {
-      case 'TRANSPORTATION': return '#10b981';
-      case 'DIET': return '#3b82f6';
-      case 'ENERGY': return '#f59e0b';
-      default: return '#ef4444';
+      case 'TRANSPORTATION': return '#34d399';
+      case 'DIET': return '#60a5fa';
+      case 'ENERGY': return '#fbbf24';
+      default: return '#f87171';
     }
   };
 

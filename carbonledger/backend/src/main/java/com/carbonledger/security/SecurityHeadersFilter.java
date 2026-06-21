@@ -20,9 +20,17 @@ public class SecurityHeadersFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (response instanceof HttpServletResponse) {
+        if (request instanceof jakarta.servlet.http.HttpServletRequest && response instanceof HttpServletResponse) {
+            jakarta.servlet.http.HttpServletRequest httpRequest = (jakarta.servlet.http.HttpServletRequest) request;
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             
+            // Block insecure HTTP methods (TRACE/TRACK) to prevent cross-site tracking/debugging leaks
+            String method = httpRequest.getMethod();
+            if ("TRACE".equalsIgnoreCase(method) || "TRACK".equalsIgnoreCase(method)) {
+                httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+                return;
+            }
+
             // Prevent site from being embedded in frames/iframes (clickjacking)
             httpResponse.setHeader("X-Frame-Options", "DENY");
             
@@ -35,15 +43,28 @@ public class SecurityHeadersFilter implements Filter {
             // Protect referrer privacy while maintaining security context
             httpResponse.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
             
-            // Inject a tight, robust Content Security Policy (CSP) compatible with standard React resources
+            // Inject a tight, robust Content Security Policy (CSP) compatible with standard React resources (excluding unsafe-inline scripts)
             httpResponse.setHeader("Content-Security-Policy", 
                 "default-src 'self'; " +
-                "script-src 'self' 'unsafe-inline'; " +
+                "script-src 'self'; " +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                 "font-src 'self' https://fonts.gstatic.com; " +
                 "img-src 'self' data:; " +
                 "connect-src 'self';"
             );
+
+            // Enforce Strict Transport Security (HSTS)
+            httpResponse.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+
+            // Control browser feature access (geolocation, camera, mic)
+            httpResponse.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+
+            // Control cross-origin interactions
+            httpResponse.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+            httpResponse.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+
+            // Prevent Flash/PDF content from executing cross-domain requests
+            httpResponse.setHeader("X-Permitted-Cross-Domain-Policies", "none");
         }
         chain.doFilter(request, response);
     }

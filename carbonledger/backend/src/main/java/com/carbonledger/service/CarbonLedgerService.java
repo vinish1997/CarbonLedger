@@ -7,6 +7,8 @@ import com.carbonledger.repository.ActionLogRepository;
 import com.carbonledger.repository.ChallengeRepository;
 import com.carbonledger.repository.ProfileRepository;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ import java.util.*;
 
 @Service
 public class CarbonLedgerService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CarbonLedgerService.class);
 
     private final ProfileRepository profileRepository;
     private final ChallengeRepository challengeRepository;
@@ -59,13 +63,8 @@ public class CarbonLedgerService {
 
     @Transactional
     public List<Challenge> rotateWeeklyChallenges() {
-        List<Challenge> dbChallenges = challengeRepository.findAll();
-        
-        // Remove unaccepted, uncompleted available challenges
-        List<Challenge> toDelete = dbChallenges.stream()
-                .filter(c -> !c.isActive() && !c.isCompleted())
-                .toList();
-        challengeRepository.deleteAll(toDelete);
+        // Remove unaccepted, uncompleted available challenges directly in DB
+        challengeRepository.deleteUnacceptedAndUncompletedChallenges();
         
         // Avoid duplicate titles with active or completed goals
         Set<String> activeOrCompletedTitles = new HashSet<>();
@@ -104,7 +103,7 @@ public class CarbonLedgerService {
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 0 * * MON")
     public void scheduledWeeklyRotation() {
         rotateWeeklyChallenges();
-        System.out.println("Cron triggered: Weekly challenges rotated successfully at " + LocalDate.now());
+        logger.info("Cron triggered: Weekly challenges rotated successfully at {}", LocalDate.now());
     }
 
     public Profile getOrCreateProfile() {
@@ -170,7 +169,8 @@ public class CarbonLedgerService {
 
     @Transactional
     public ActionLog logAction(String actionName, double carbonSaving, String category) {
-        ActionLog actionLog = new ActionLog(actionName, carbonSaving, category.toUpperCase(), LocalDate.now());
+        String sanitizedActionName = sanitizeHtml(actionName);
+        ActionLog actionLog = new ActionLog(sanitizedActionName, carbonSaving, category.toUpperCase(), LocalDate.now());
         return actionLogRepository.save(actionLog);
     }
 
@@ -184,15 +184,18 @@ public class CarbonLedgerService {
                 LocalDate.now().minusDays(30), LocalDate.now()
         );
 
-        // Sum carbon savings in kg
-        double totalSavingsKg = actionLogRepository.findAll().stream()
-                .mapToDouble(ActionLog::getCarbonSaving)
-                .sum();
-
-        // Group savings by category
+        // Execute a single grouped query directly on DB
+        List<Object[]> groupedSavings = actionLogRepository.getCarbonSavingsByCategory();
         Map<String, Double> savingsByCategory = new HashMap<>();
-        for (ActionLog log : actionLogRepository.findAll()) {
-            savingsByCategory.merge(log.getCategory(), log.getCarbonSaving(), Double::sum);
+        double totalSavingsKg = 0.0;
+        
+        for (Object[] row : groupedSavings) {
+            String category = (String) row[0];
+            Double saving = (Double) row[1];
+            if (category != null && saving != null) {
+                savingsByCategory.put(category, saving);
+                totalSavingsKg += saving;
+            }
         }
 
         Map<String, Object> data = new HashMap<>();
@@ -207,5 +210,15 @@ public class CarbonLedgerService {
         data.put("equivalentGasSavedLiters", Math.round((totalSavingsKg / 2.3) * 10.0) / 10.0); // 1 liter of petrol ~ 2.3kg CO2
 
         return data;
+    }
+
+    private String sanitizeHtml(String input) {
+        if (input == null) return null;
+        return input.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&#x27;")
+                    .replace("/", "&#x2F;");
     }
 }

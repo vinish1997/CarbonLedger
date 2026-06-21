@@ -21,8 +21,8 @@
   --danger-glow: rgba(239, 68, 68, 0.15);
   
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1; /* Upgraded to Slate 300 for high contrast */
+  --text-muted: #94a3b8; /* Upgraded to Slate 400 for high contrast */
   
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --shadow-main: 0 8px 30px rgba(0, 0, 0, 0.4);
@@ -271,4 +271,15 @@ h1, h2, h3, h4, h5, h6 {
     width: calc(100% - 80px);
     padding: 24px;
   }
+}
+
+/* Global Accessibility Focus Indicators */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--primary-glow) !important;
 }

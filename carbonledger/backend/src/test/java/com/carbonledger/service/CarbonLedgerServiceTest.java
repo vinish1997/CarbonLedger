@@ -69,11 +69,7 @@ public class CarbonLedgerServiceTest {
 
         List<Challenge> result = carbonLedgerService.rotateWeeklyChallenges();
 
-        verify(challengeRepository).deleteAll(argThat(iterable -> {
-            List<Challenge> list = new ArrayList<>();
-            iterable.forEach(list::add);
-            return list.size() == 1 && list.get(0).getTitle().equals("Meatless Week");
-        }));
+        verify(challengeRepository).deleteUnacceptedAndUncompletedChallenges();
 
         verify(challengeRepository, atLeastOnce()).saveAll(anyList());
         assertNotNull(result);
@@ -230,7 +226,12 @@ public class CarbonLedgerServiceTest {
                 new ActionLog("Log 2", 15.0, "TRANSPORTATION", LocalDate.now())
         );
         when(actionLogRepository.findByDateLoggedBetween(any(LocalDate.class), any(LocalDate.class))).thenReturn(logs);
-        when(actionLogRepository.findAll()).thenReturn(logs);
+        
+        List<Object[]> grouped = List.of(
+                new Object[]{"DIET", 10.0},
+                new Object[]{"TRANSPORTATION", 15.0}
+        );
+        when(actionLogRepository.getCarbonSavingsByCategory()).thenReturn(grouped);
 
         Map<String, Object> data = carbonLedgerService.getDashboardData();
         assertEquals(profile, data.get("profile"));

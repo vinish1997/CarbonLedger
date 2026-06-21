@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../utils/api';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Leaf, Award, Compass, Zap, Flame, Bike, UtensilsCrossed, Trash2 } from 'lucide-react';
@@ -41,11 +41,68 @@ export default function Dashboard({ triggerRefresh }) {
     }
   };
 
+  const profile = data?.profile || {};
+
+  const personalizedInsights = useMemo(() => {
+    const insights = [];
+    if (!profile || profile.totalFootprint === undefined) {
+      return [{
+        title: "Complete the Calculator",
+        text: "Please visit the Carbon Calculator tab to estimate your baseline carbon footprint and receive personalized insights.",
+        type: "neutral"
+      }];
+    }
+
+    const { transportFootprint, dietFootprint, energyFootprint, consumptionFootprint, totalFootprint } = profile;
+    
+    if (totalFootprint > 4.0) {
+      insights.push({
+        title: "Baseline Above Safe Climate Limit",
+        text: `Your footprint of ${totalFootprint} tons exceeds the sustainable target of 4.0 tons. Prioritize switching to renewable energy tariffs and reducing car commute miles.`,
+        type: "warning"
+      });
+    } else {
+      insights.push({
+        title: "Eco Leader Status!",
+        text: `Great job! Your annual footprint (${totalFootprint} tons) is within the safe planetary ceiling of 4.0 tons. Keep logging actions to push it even lower!`,
+        type: "success"
+      });
+    }
+
+    const categories = [
+      { name: 'Transportation', value: transportFootprint || 0, tip: 'Consider cycling or walking for trips under 5km, using public transit, or exploring electric vehicle options.' },
+      { name: 'Diet', value: dietFootprint || 0, tip: 'Swapping beef/pork for poultry, fish, or plant-based proteins even 3 days a week drastically cuts agricultural methane emissions.' },
+      { name: 'Home Energy', value: energyFootprint || 0, tip: 'Upgrade to LED bulbs, optimize thermostat settings (lower by 2°C in winter), and look into green or solar power utility tariffs.' },
+      { name: 'Consumption', value: consumptionFootprint || 0, tip: 'Embrace a minimalist shopping approach: repair gadgets instead of replacing them, buy local produce, and avoid single-use plastics.' }
+    ];
+    
+    categories.sort((a, b) => b.value - a.value);
+    
+    const topCat = categories[0];
+    if (topCat && topCat.value > 0) {
+      insights.push({
+        title: `Primary Impact Area: ${topCat.name}`,
+        text: `Your highest emission source is ${topCat.name} (${topCat.value.toFixed(2)} Tons). Tip: ${topCat.tip}`,
+        type: "primary"
+      });
+    }
+
+    const secondCat = categories[1];
+    if (secondCat && secondCat.value > 1.0) {
+      insights.push({
+        title: `Secondary Impact Area: ${secondCat.name}`,
+        text: `${secondCat.name} contributes ${secondCat.value.toFixed(2)} Tons to your annual footprint. Tip: ${secondCat.tip}`,
+        type: "secondary"
+      });
+    }
+
+    return insights;
+  }, [profile]);
+
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading Carbon Metrics...</div>;
   }
 
-  const profile = data?.profile || {};
   const breakdownData = [
     { name: 'Transportation', value: profile.transportFootprint || 0 },
     { name: 'Diet', value: profile.dietFootprint || 0 },
@@ -128,6 +185,45 @@ export default function Dashboard({ triggerRefresh }) {
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
             Global safe climate ceiling is ~4.0 tons. Global average is ~4.8 tons.
           </p>
+        </div>
+      </div>
+
+      {/* Personalized Insights Section */}
+      <div className="glass-card" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '20px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Compass size={22} color="var(--primary)" />
+          Personalized Eco Insights
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+          Tailored recommendations generated from your unique carbon baseline answers:
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+          {personalizedInsights.map((insight, idx) => (
+            <div 
+              key={idx} 
+              style={{
+                padding: '16px 20px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderLeft: `4px solid ${
+                  insight.type === 'warning' ? 'var(--warning)' : 
+                  insight.type === 'success' ? 'var(--primary)' : 
+                  insight.type === 'primary' ? 'var(--secondary)' : 
+                  'var(--text-muted)'
+                }`,
+                borderTop: '1px solid var(--border-glass)',
+                borderRight: '1px solid var(--border-glass)',
+                borderBottom: '1px solid var(--border-glass)'
+              }}
+            >
+              <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                {insight.title}
+              </h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                {insight.text}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
