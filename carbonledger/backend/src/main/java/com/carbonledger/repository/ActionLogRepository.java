@@ -19,6 +19,8 @@ public interface ActionLogRepository extends JpaRepository<ActionLog, Long> {
     // Date range fetching for line/bar charts
     List<ActionLog> findByDateLoggedBetween(LocalDate start, LocalDate end);
 
+    long countByDateLoggedBetween(LocalDate start, LocalDate end);
+
     // Aggregated query for carbon saving by category (useful for charts)
     @Query("SELECT a.category, SUM(a.carbonSaving) FROM ActionLog a GROUP BY a.category")
     List<Object[]> getCarbonSavingsByCategory();

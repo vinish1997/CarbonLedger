@@ -1,12 +1,17 @@
 package com.carbonledger.controller;
 
 import com.carbonledger.dto.CalculatorRequest;
+import com.carbonledger.dto.ProfileDTO;
 import com.carbonledger.model.Profile;
 import com.carbonledger.service.CalculatorService;
 import com.carbonledger.service.CarbonLedgerService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/calculator")
@@ -21,12 +26,13 @@ public class CalculatorController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<Profile> getProfile() {
-        return ResponseEntity.ok(carbonLedgerService.getOrCreateProfile());
+    public ResponseEntity<ProfileDTO> getProfile() {
+        ProfileDTO dto = new ProfileDTO(carbonLedgerService.getOrCreateProfile());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/calculate")
-    public ResponseEntity<Profile> calculateAndSave(@Valid @RequestBody CalculatorRequest request) {
+    public ResponseEntity<ProfileDTO> calculateAndSave(@Valid @RequestBody CalculatorRequest request) {
         Profile profile = new Profile();
         profile.setCarKmPerWeek(request.getCarKmPerWeek());
         profile.setCarType(request.getCarType());
@@ -41,6 +47,7 @@ public class CalculatorController {
         Profile computedProfile = calculatorService.calculateFootprint(profile);
         Profile savedProfile = carbonLedgerService.saveProfile(computedProfile);
 
-        return ResponseEntity.ok(savedProfile);
+        ProfileDTO dto = new ProfileDTO(savedProfile);
+        return ResponseEntity.ok(dto);
     }
 }

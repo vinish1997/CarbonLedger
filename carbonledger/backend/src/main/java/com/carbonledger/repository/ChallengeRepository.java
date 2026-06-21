@@ -18,4 +18,10 @@ public interface ChallengeRepository extends JpaRepository<Challenge, Long> {
     @Transactional
     @Query("DELETE FROM Challenge c WHERE c.active = false AND c.completed = false")
     void deleteUnacceptedAndUncompletedChallenges();
+
+    @Query("SELECT c.title FROM Challenge c")
+    List<String> findAllTitles();
+
+    @Query("SELECT c.title FROM Challenge c WHERE c.active = true")
+    List<String> findActiveTitles();
 }

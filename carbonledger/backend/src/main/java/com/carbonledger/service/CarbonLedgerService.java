@@ -3,6 +3,7 @@ package com.carbonledger.service;
 import com.carbonledger.model.ActionLog;
 import com.carbonledger.model.Challenge;
 import com.carbonledger.model.Profile;
+import com.carbonledger.dto.ProfileDTO;
 import com.carbonledger.repository.ActionLogRepository;
 import com.carbonledger.repository.ChallengeRepository;
 import com.carbonledger.repository.ProfileRepository;
@@ -15,9 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Service
+@Transactional(readOnly = true)
 public class CarbonLedgerService {
 
     private static final Logger logger = LoggerFactory.getLogger(CarbonLedgerService.class);
@@ -54,6 +62,7 @@ public class CarbonLedgerService {
     );
 
     @PostConstruct
+    @Transactional
     public void initSeeds() {
         if (challengeRepository.count() == 0) {
             // Seed first 3 challenges initially
@@ -66,11 +75,8 @@ public class CarbonLedgerService {
         // Remove unaccepted, uncompleted available challenges directly in DB
         challengeRepository.deleteUnacceptedAndUncompletedChallenges();
         
-        // Avoid duplicate titles with active or completed goals
-        Set<String> activeOrCompletedTitles = new HashSet<>();
-        for (Challenge c : challengeRepository.findAll()) {
-            activeOrCompletedTitles.add(c.getTitle());
-        }
+        // Avoid duplicate titles with active or completed goals using lightweight query
+        Set<String> activeOrCompletedTitles = new HashSet<>(challengeRepository.findAllTitles());
         
         // Find remaining eligible templates
         List<Challenge> candidates = MASTER_CHALLENGE_POOL.stream()
@@ -78,10 +84,7 @@ public class CarbonLedgerService {
                 .collect(java.util.stream.Collectors.toList());
         
         if (candidates.size() < 3) {
-            Set<String> currentlyActiveTitles = challengeRepository.findAll().stream()
-                    .filter(Challenge::isActive)
-                    .map(Challenge::getTitle)
-                    .collect(java.util.stream.Collectors.toSet());
+            Set<String> currentlyActiveTitles = new HashSet<>(challengeRepository.findActiveTitles());
             candidates = MASTER_CHALLENGE_POOL.stream()
                     .filter(c -> !currentlyActiveTitles.contains(c.getTitle()))
                     .collect(java.util.stream.Collectors.toList());
@@ -101,11 +104,13 @@ public class CarbonLedgerService {
     }
 
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 0 * * MON")
+    @Transactional
     public void scheduledWeeklyRotation() {
         rotateWeeklyChallenges();
         logger.info("Cron triggered: Weekly challenges rotated successfully at {}", LocalDate.now());
     }
 
+    @Transactional
     public Profile getOrCreateProfile() {
         return profileRepository.findById(1L).orElseGet(() -> {
             Profile defaultProfile = new Profile();
@@ -131,6 +136,7 @@ public class CarbonLedgerService {
         });
     }
 
+    @Transactional
     public Profile saveProfile(Profile profile) {
         profile.setId(1L); // Enforce single user/profile for simplicity
         return profileRepository.save(profile);
@@ -180,7 +186,9 @@ public class CarbonLedgerService {
 
     public Map<String, Object> getDashboardData() {
         Profile profile = getOrCreateProfile();
-        List<ActionLog> recentLogs = actionLogRepository.findByDateLoggedBetween(
+        
+        // Execute a count query directly on DB
+        long recentLogsCount = actionLogRepository.countByDateLoggedBetween(
                 LocalDate.now().minusDays(30), LocalDate.now()
         );
 
@@ -199,10 +207,10 @@ public class CarbonLedgerService {
         }
 
         Map<String, Object> data = new HashMap<>();
-        data.put("profile", profile);
+        data.put("profile", new ProfileDTO(profile));
         data.put("totalSavingsKg", Math.round(totalSavingsKg * 100.0) / 100.0);
         data.put("savingsByCategory", savingsByCategory);
-        data.put("recentLogsCount", recentLogs.size());
+        data.put("recentLogsCount", (int) recentLogsCount);
         
         // Math equivalents
         data.put("equivalentTreesPlanted", Math.round((totalSavingsKg / 22.0) * 10.0) / 10.0); // 1 tree absorbs ~22kg CO2 per year

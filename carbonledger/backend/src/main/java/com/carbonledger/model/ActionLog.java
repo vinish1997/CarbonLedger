@@ -1,10 +1,18 @@
 package com.carbonledger.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import jakarta.persistence.Id;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Index;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "action_logs")
+@Table(name = "action_logs", indexes = {
+    @Index(name = "idx_action_logs_date_logged", columnList = "dateLogged"),
+    @Index(name = "idx_action_logs_category", columnList = "category")
+})
 public class ActionLog {
 
     @Id

@@ -1,45 +1,34 @@
-package com.carbonledger.model;
+package com.carbonledger.dto;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Index;
+import com.carbonledger.model.Challenge;
 
-@Entity
-@Table(name = "challenges", indexes = {
-    @Index(name = "idx_challenges_active", columnList = "active"),
-    @Index(name = "idx_challenges_completed", columnList = "completed")
-})
-public class Challenge {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class ChallengeDTO {
     private Long id;
-
     private String title;
     private String description;
-    private String category; // TRANSPORTATION, DIET, ENERGY, CONSUMPTION
-    private double carbonSaving; // kg CO2e saved by completing this challenge
-    private String difficulty; // EASY, MEDIUM, HARD
+    private String category;
+    private double carbonSaving;
+    private String difficulty;
     private boolean active;
     private boolean completed;
     private int daysDuration;
     private int daysProgress;
 
-    public Challenge() {}
+    public ChallengeDTO() {}
 
-    public Challenge(String title, String description, String category, double carbonSaving, String difficulty, int daysDuration) {
-        this.title = title;
-        this.description = description;
-        this.category = category;
-        this.carbonSaving = carbonSaving;
-        this.difficulty = difficulty;
-        this.daysDuration = daysDuration;
-        this.active = false;
-        this.completed = false;
-        this.daysProgress = 0;
+    public ChallengeDTO(Challenge entity) {
+        if (entity != null) {
+            this.id = entity.getId();
+            this.title = entity.getTitle();
+            this.description = entity.getDescription();
+            this.category = entity.getCategory();
+            this.carbonSaving = entity.getCarbonSaving();
+            this.difficulty = entity.getDifficulty();
+            this.active = entity.isActive();
+            this.completed = entity.isCompleted();
+            this.daysDuration = entity.getDaysDuration();
+            this.daysProgress = entity.getDaysProgress();
+        }
     }
 
     public Long getId() {

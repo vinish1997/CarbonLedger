@@ -3,6 +3,7 @@ package com.carbonledger.service;
 import com.carbonledger.model.ActionLog;
 import com.carbonledger.model.Challenge;
 import com.carbonledger.model.Profile;
+import com.carbonledger.dto.ProfileDTO;
 import com.carbonledger.repository.ActionLogRepository;
 import com.carbonledger.repository.ChallengeRepository;
 import com.carbonledger.repository.ProfileRepository;
@@ -15,13 +16,27 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 
 public class CarbonLedgerServiceTest {
 
@@ -221,11 +236,7 @@ public class CarbonLedgerServiceTest {
         profile.setId(1L);
         when(profileRepository.findById(1L)).thenReturn(Optional.of(profile));
 
-        List<ActionLog> logs = List.of(
-                new ActionLog("Log 1", 10.0, "DIET", LocalDate.now()),
-                new ActionLog("Log 2", 15.0, "TRANSPORTATION", LocalDate.now())
-        );
-        when(actionLogRepository.findByDateLoggedBetween(any(LocalDate.class), any(LocalDate.class))).thenReturn(logs);
+        when(actionLogRepository.countByDateLoggedBetween(any(LocalDate.class), any(LocalDate.class))).thenReturn(2L);
         
         List<Object[]> grouped = List.of(
                 new Object[]{"DIET", 10.0},
@@ -234,7 +245,9 @@ public class CarbonLedgerServiceTest {
         when(actionLogRepository.getCarbonSavingsByCategory()).thenReturn(grouped);
 
         Map<String, Object> data = carbonLedgerService.getDashboardData();
-        assertEquals(profile, data.get("profile"));
+        ProfileDTO profileDto = (ProfileDTO) data.get("profile");
+        assertNotNull(profileDto);
+        assertEquals(1L, profileDto.getId());
         assertEquals(25.0, data.get("totalSavingsKg"));
         assertEquals(2, data.get("recentLogsCount"));
         assertEquals(1.1, data.get("equivalentTreesPlanted"));

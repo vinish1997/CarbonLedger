@@ -83,9 +83,9 @@ export default function Challenges({ onChallengeAction }) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading eco-challenges...</div>;
   }
 
-  const activeChallenges = challenges.filter((c) => c.active);
-  const availableChallenges = challenges.filter((c) => !c.active && !c.completed);
-  const completedChallenges = challenges.filter((c) => c.completed);
+  const activeChallenges = React.useMemo(() => challenges.filter((c) => c.active), [challenges]);
+  const availableChallenges = React.useMemo(() => challenges.filter((c) => !c.active && !c.completed), [challenges]);
+  const completedChallenges = React.useMemo(() => challenges.filter((c) => c.completed), [challenges]);
 
   const getCategoryColor = (cat) => {
     switch (cat.toUpperCase()) {

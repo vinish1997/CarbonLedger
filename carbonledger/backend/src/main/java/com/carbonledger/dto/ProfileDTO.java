@@ -1,41 +1,46 @@
-package com.carbonledger.model;
+package com.carbonledger.dto;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import com.carbonledger.model.Profile;
 
-@Entity
-@Table(name = "profiles")
-public class Profile {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class ProfileDTO {
     private Long id;
-
-    // Computed footprints (in metric tons CO2e per year)
     private double totalFootprint;
     private double transportFootprint;
     private double dietFootprint;
     private double energyFootprint;
     private double consumptionFootprint;
-
-    // Onboarding responses
     private double carKmPerWeek;
-    private String carType; // PETROL, DIESEL, HYBRID, ELECTRIC, NONE
+    private String carType;
     private double transitHoursPerWeek;
     private double flightsPerYear;
-    private String dietType; // VEGAN, VEGETARIAN, PESCATARIAN, MEAT_LIGHT, MEAT_HEAVY
+    private String dietType;
     private double householdSize;
-    private String homeEnergySource; // GRID, RENEWABLE
-    private String heatingType; // GAS, ELECTRIC, OIL
-    private String shoppingHabits; // MINIMAL, AVERAGE, HEAVY
+    private String homeEnergySource;
+    private String heatingType;
+    private String shoppingHabits;
 
-    // Constructors
-    public Profile() {}
+    public ProfileDTO() {}
 
-    // Getters and Setters
+    public ProfileDTO(Profile entity) {
+        if (entity != null) {
+            this.id = entity.getId();
+            this.totalFootprint = entity.getTotalFootprint();
+            this.transportFootprint = entity.getTransportFootprint();
+            this.dietFootprint = entity.getDietFootprint();
+            this.energyFootprint = entity.getEnergyFootprint();
+            this.consumptionFootprint = entity.getConsumptionFootprint();
+            this.carKmPerWeek = entity.getCarKmPerWeek();
+            this.carType = entity.getCarType();
+            this.transitHoursPerWeek = entity.getTransitHoursPerWeek();
+            this.flightsPerYear = entity.getFlightsPerYear();
+            this.dietType = entity.getDietType();
+            this.householdSize = entity.getHouseholdSize();
+            this.homeEnergySource = entity.getHomeEnergySource();
+            this.heatingType = entity.getHeatingType();
+            this.shoppingHabits = entity.getShoppingHabits();
+        }
+    }
+
     public Long getId() {
         return id;
     }
