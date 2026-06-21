@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '../utils/api';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Leaf, Award, Compass, Zap, Flame, Bike, UtensilsCrossed, Trash2 } from 'lucide-react';
@@ -12,47 +12,79 @@ const QUICK_ACTIONS = [
   { label: 'Declined plastic bags', saving: 0.4, category: 'CONSUMPTION', icon: Trash2, color: '#ef4444' }
 ];
 
-export default function Dashboard({ triggerRefresh }) {
+// Custom Hook to manage state, side-effects, and data fetching
+function useDashboard(triggerRefresh) {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logStatus, setLogStatus] = useState(null);
+  const isMounted = useRef(true);
 
-  const fetchDashboardData = async () => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const fetchDashboardData = useCallback(async () => {
     try {
-      const dbData = await api.getDashboard();
-      const histData = await api.getHistory(0, 7);
-      setData(dbData);
-      setHistory(histData.content || []);
+      const [dbData, histData] = await Promise.all([
+        api.getDashboard(),
+        api.getHistory(0, 7)
+      ]);
+      if (isMounted.current) {
+        setData(dbData);
+        setHistory(histData.content || []);
+      }
     } catch (err) {
       console.error('Error fetching dashboard details:', err);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
+    setLoading(true);
     fetchDashboardData();
-  }, [triggerRefresh]);
+  }, [triggerRefresh, fetchDashboardData]);
 
-  const handleQuickLog = async (actionName, carbonSaving, category) => {
-    try {
+  const handleQuickLog = useCallback(async (actionName, carbonSaving, category) => {
+    if (isMounted.current) {
       setLogStatus(`Logging: ${actionName}...`);
+    }
+    try {
       await api.logAction({ actionName, carbonSaving, category });
-      setLogStatus(`Logged! Saved ${carbonSaving}kg CO2`);
-      setTimeout(() => setLogStatus(null), 3000);
-      fetchDashboardData(); // Refresh stats
+      if (isMounted.current) {
+        setLogStatus(`Logged! Saved ${carbonSaving}kg CO2`);
+      }
+      await fetchDashboardData();
     } catch (err) {
       console.error(err);
-      setLogStatus('Failed to log action.');
+      if (isMounted.current) {
+        setLogStatus('Failed to log action.');
+      }
     }
-  };
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    if (logStatus && !logStatus.startsWith('Logging:')) {
+      const timer = setTimeout(() => {
+        if (isMounted.current) {
+          setLogStatus(null);
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [logStatus]);
 
   const profile = data?.profile || {};
 
   const personalizedInsights = useMemo(() => {
     const insights = [];
-    if (!profile || profile.totalFootprint === undefined) {
+    if (!data || !data.profile) {
       return [{
         title: "Complete the Calculator",
         text: "Please visit the Carbon Calculator tab to estimate your baseline carbon footprint and receive personalized insights.",
@@ -104,7 +136,7 @@ export default function Dashboard({ triggerRefresh }) {
     }
 
     return insights;
-  }, [profile]);
+  }, [data, profile]);
 
   const breakdownData = useMemo(() => [
     { name: 'Transportation', value: profile.transportFootprint || 0 },
@@ -113,15 +145,150 @@ export default function Dashboard({ triggerRefresh }) {
     { name: 'Consumption', value: profile.consumptionFootprint || 0 }
   ], [profile.transportFootprint, profile.dietFootprint, profile.energyFootprint, profile.consumptionFootprint]);
 
-  // Convert history array to a format compatible with Recharts (savings over last 7 entries)
   const savingsChartData = useMemo(() => history.slice().reverse().map(log => ({
     name: log.actionName.length > 18 ? log.actionName.substring(0, 15) + '...' : log.actionName,
     saving: log.carbonSaving
   })), [history]);
 
+  return {
+    data,
+    loading,
+    logStatus,
+    personalizedInsights,
+    breakdownData,
+    savingsChartData,
+    handleQuickLog
+  };
+}
+
+// Sub-components to enforce Separation of Concerns and Reusability
+const StatCard = React.memo(({ title, value, unit, description, icon: Icon, colorClass, iconColor }) => (
+  <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>{title}</span>
+      <Icon size={20} color={iconColor} />
+    </div>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+      <span style={{ fontSize: '36px', fontWeight: '800', color: colorClass }}>{value}</span>
+      <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{unit}</span>
+    </div>
+    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+      {description}
+    </p>
+  </div>
+));
+
+StatCard.displayName = 'StatCard';
+
+const InsightCard = React.memo(({ title, text, type }) => {
+  const borderLeftColor = useMemo(() => {
+    switch (type) {
+      case 'warning': return 'var(--warning)';
+      case 'success': return 'var(--primary)';
+      case 'primary': return 'var(--secondary)';
+      default: return 'var(--text-muted)';
+    }
+  }, [type]);
+
+  return (
+    <div 
+      style={{
+        padding: '16px 20px',
+        borderRadius: '12px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        borderLeft: `4px solid ${borderLeftColor}`,
+        borderTop: '1px solid var(--border-glass)',
+        borderRight: '1px solid var(--border-glass)',
+        borderBottom: '1px solid var(--border-glass)'
+      }}
+    >
+      <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>
+        {title}
+      </h4>
+      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+        {text}
+      </p>
+    </div>
+  );
+});
+
+InsightCard.displayName = 'InsightCard';
+
+const EquivalentCard = React.memo(({ title, value, icon: Icon, glowColor, iconColor }) => (
+  <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
+    <div style={{ background: glowColor, padding: '12px', borderRadius: '12px', color: iconColor, border: `1px solid ${iconColor}` }}>
+      <Icon size={24} />
+    </div>
+    <div>
+      <span style={{ fontSize: '20px', fontWeight: '800', display: 'block' }}>{value}</span>
+      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{title}</span>
+    </div>
+  </div>
+));
+
+EquivalentCard.displayName = 'EquivalentCard';
+
+const QuickActionLogger = React.memo(({ handleQuickLog }) => (
+  <div className="glass-card">
+    <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>Log a Green Action</h3>
+    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+      Did you make an eco-friendly choice today? Select a quick template below to log your instant carbon savings!
+    </p>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+      {QUICK_ACTIONS.map((action, idx) => {
+        const Icon = action.icon;
+        return (
+          <button
+            key={idx}
+            onClick={() => handleQuickLog(action.label, action.saving, action.category)}
+            aria-label={`Log action: ${action.label}. Saves ${action.saving} kilograms of carbon.`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: '12px',
+              color: 'var(--text-primary)',
+              textAlign: 'left',
+              cursor: 'pointer',
+              transition: 'var(--transition-smooth)'
+            }}
+            className="btn-quick-log"
+          >
+            <div style={{ background: `${action.color}15`, padding: '10px', borderRadius: '10px', color: action.color, border: `1px solid ${action.color}30` }}>
+              <Icon size={20} />
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: '600', display: 'block' }}>{action.label}</span>
+              <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '500' }}>-{action.saving} kg CO2e</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+));
+
+QuickActionLogger.displayName = 'QuickActionLogger';
+
+export default function Dashboard({ triggerRefresh }) {
+  const {
+    data,
+    loading,
+    logStatus,
+    personalizedInsights,
+    breakdownData,
+    savingsChartData,
+    handleQuickLog
+  } = useDashboard(triggerRefresh);
+
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading Carbon Metrics...</div>;
   }
+
+  const profile = data?.profile || {};
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -140,52 +307,33 @@ export default function Dashboard({ triggerRefresh }) {
 
       {/* Main Stats Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-        
-        {/* Baseline Footprint Card */}
-        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Baseline Footprint</span>
-            <Leaf size={20} color="var(--primary)" />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '36px', fontWeight: '800', color: 'var(--text-primary)' }}>{profile.totalFootprint}</span>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>Tons CO2e/Yr</span>
-          </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Your baseline footprint is based on onboarding responses.
-          </p>
-        </div>
-
-        {/* Carbon Savings Card */}
-        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Total Saved Carbon</span>
-            <Award size={20} color="var(--secondary)" />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '36px', fontWeight: '800', color: 'var(--primary)' }}>{data?.totalSavingsKg}</span>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>kg CO2e</span>
-          </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Accumulated from active challenges and quick action logging.
-          </p>
-        </div>
-
-        {/* Climate Target Card */}
-        <div className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Eco Benchmark Comparison</span>
-            <Compass size={20} color="var(--warning)" />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '36px', fontWeight: '800', color: 'var(--warning)' }}>
-              {profile.totalFootprint > 4.0 ? 'Above' : 'Below'} Target
-            </span>
-          </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Global safe climate ceiling is ~4.0 tons. Global average is ~4.8 tons.
-          </p>
-        </div>
+        <StatCard 
+          title="Baseline Footprint"
+          value={profile.totalFootprint}
+          unit="Tons CO2e/Yr"
+          description="Your baseline footprint is based on onboarding responses."
+          icon={Leaf}
+          colorClass="var(--text-primary)"
+          iconColor="var(--primary)"
+        />
+        <StatCard 
+          title="Total Saved Carbon"
+          value={data?.totalSavingsKg}
+          unit="kg CO2e"
+          description="Accumulated from active challenges and quick action logging."
+          icon={Award}
+          colorClass="var(--primary)"
+          iconColor="var(--secondary)"
+        />
+        <StatCard 
+          title="Eco Benchmark Comparison"
+          value={profile.totalFootprint > 4.0 ? 'Above Target' : 'Below Target'}
+          unit=""
+          description="Global safe climate ceiling is ~4.0 tons. Global average is ~4.8 tons."
+          icon={Compass}
+          colorClass="var(--warning)"
+          iconColor="var(--warning)"
+        />
       </div>
 
       {/* Personalized Insights Section */}
@@ -199,30 +347,12 @@ export default function Dashboard({ triggerRefresh }) {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {personalizedInsights.map((insight, idx) => (
-            <div 
+            <InsightCard 
               key={idx} 
-              style={{
-                padding: '16px 20px',
-                borderRadius: '12px',
-                background: 'rgba(255, 255, 255, 0.02)',
-                borderLeft: `4px solid ${
-                  insight.type === 'warning' ? 'var(--warning)' : 
-                  insight.type === 'success' ? 'var(--primary)' : 
-                  insight.type === 'primary' ? 'var(--secondary)' : 
-                  'var(--text-muted)'
-                }`,
-                borderTop: '1px solid var(--border-glass)',
-                borderRight: '1px solid var(--border-glass)',
-                borderBottom: '1px solid var(--border-glass)'
-              }}
-            >
-              <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>
-                {insight.title}
-              </h4>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                {insight.text}
-              </p>
-            </div>
+              title={insight.title}
+              text={insight.text}
+              type={insight.type}
+            />
           ))}
         </div>
       </div>
@@ -231,41 +361,32 @@ export default function Dashboard({ triggerRefresh }) {
       <div>
         <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>Your Saved Carbon is Equivalent To</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
-          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
-            <div style={{ background: 'var(--primary-glow)', padding: '12px', borderRadius: '12px', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-              <Leaf size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '20px', fontWeight: '800', display: 'block' }}>{data?.equivalentTreesPlanted}</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Trees growing (1 yr)</span>
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
-            <div style={{ background: 'var(--secondary-glow)', padding: '12px', borderRadius: '12px', color: 'var(--secondary)', border: '1px solid var(--secondary)' }}>
-              <Zap size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '20px', fontWeight: '800', display: 'block' }}>{data?.equivalentSmartphonesCharged}</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Smartphones charged</span>
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
-            <div style={{ background: 'var(--warning-glow)', padding: '12px', borderRadius: '12px', color: 'var(--warning)', border: '1px solid var(--warning)' }}>
-              <Flame size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '20px', fontWeight: '800', display: 'block' }}>{data?.equivalentGasSavedLiters}</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Liters of Petrol saved</span>
-            </div>
-          </div>
+          <EquivalentCard 
+            title="Trees growing (1 yr)"
+            value={data?.equivalentTreesPlanted}
+            icon={Leaf}
+            glowColor="var(--primary-glow)"
+            iconColor="var(--primary)"
+          />
+          <EquivalentCard 
+            title="Smartphones charged"
+            value={data?.equivalentSmartphonesCharged}
+            icon={Zap}
+            glowColor="var(--secondary-glow)"
+            iconColor="var(--secondary)"
+          />
+          <EquivalentCard 
+            title="Liters of Petrol saved"
+            value={data?.equivalentGasSavedLiters}
+            icon={Flame}
+            glowColor="var(--warning-glow)"
+            iconColor="var(--warning)"
+          />
         </div>
       </div>
 
       {/* Charts Visualization Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-        
         {/* Footprint Breakdown Pie */}
         <div className="glass-card" style={{ minHeight: '380px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Annual Footprint Breakdown</h3>
@@ -320,47 +441,7 @@ export default function Dashboard({ triggerRefresh }) {
       </div>
 
       {/* Quick Action Logger */}
-      <div className="glass-card">
-        <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>Log a Green Action</h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-          Did you make an eco-friendly choice today? Select a quick template below to log your instant carbon savings!
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          {QUICK_ACTIONS.map((action, idx) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={idx}
-                onClick={() => handleQuickLog(action.label, action.saving, action.category)}
-                aria-label={`Log action: ${action.label}. Saves ${action.saving} kilograms of carbon.`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '16px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border-glass)',
-                  borderRadius: '12px',
-                  color: 'var(--text-primary)',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)'
-                }}
-                className="btn-quick-log"
-              >
-                <div style={{ background: `${action.color}15`, padding: '10px', borderRadius: '10px', color: action.color, border: `1px solid ${action.color}30` }}>
-                  <Icon size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: '600', display: 'block' }}>{action.label}</span>
-                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '500' }}>-{action.saving} kg CO2e</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <QuickActionLogger handleQuickLog={handleQuickLog} />
     </div>
   );
 }
