@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/challenges")
-@CrossOrigin(origins = "*")
 public class ChallengeController {
 
     private final CarbonLedgerService carbonLedgerService;

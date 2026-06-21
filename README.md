@@ -33,6 +33,25 @@ graph TD
 ```
 
 
+## 🎯 Challenge Submission Details
+
+### 🏢 Chosen Vertical
+Our selected hackathon vertical is **Sustainability & Climate Action (Carbon Ledger)**. The persona focuses on a personal carbon footprint tracking assistant that makes green habits fun, visual, and reward-driven.
+
+### 🧠 Approach and Logic
+- **Gamified Lifecycle**: Standard trackers fail due to lack of engagement. The approach centers on a **Weekly Quest Board** that gives users achievable, targeted goals (e.g. *Cold Wash Only, Meatless Week*) and tracks active/completed states in a local/cloud lifecycle.
+- **Dynamic Micro-conversions**: Translates raw carbon savings (kg CO2e) into visual real-world equivalents (*trees planted, phones charged, gasoline saved*) to motivate user action.
+- **Resource Constraints / CORS-Free**: Configured a unified architecture where React and Spring Boot execute in the same origin. By removing CORS restrictions entirely, we reduce browser overhead and prevent cross-origin request vulnerabilities.
+
+### ⚙️ How the Solution Works
+1. **Onboarding & Calculator**: User fills out a 4-step wizard about travel, food, energy, and consumption. The Spring Boot backend evaluates these baseline parameters using standardized EPA emission factors.
+2. **Weekly Rotation**: Every Monday at midnight, a scheduled background job rotates available quests by pulling 3 random items from a pool of 16 templates. Completed and active quests are preserved.
+3. **Action Logging**: Users can log daily green actions, which instantly updates their historical ledger (paginated database queries) and translates to positive equivalents.
+
+### 📌 Assumptions Made
+- **Emission Conversions**: Standardized conversions are used (e.g., 1 Tree grows in 1 year to absorb ~22 kg CO2; 1 Smartphone requires ~0.0083 kg CO2 to charge; 1 Liter of gasoline contains ~2.3 kg CO2).
+- **Security Scope**: Since the database is an in-memory H2 database, authentication is simulated and mapped to a single session profile (Profile ID 1) for rapid prototyping and validation in the Cloud Run container sandbox.
+
 ## ✨ Features
 - **Multivariate Carbon Calculator**: Computes baseline footprint across travel (car type, mileage, transit, flights), diet, home energy, and shopping habits.
 - **Gamified Weekly Quest Board**: Rotates 3 sustainability challenges from a 16-challenge pool weekly using Spring Boot `@Scheduled` CRON schedules, with manual on-demand quest rolling and countdown timers.

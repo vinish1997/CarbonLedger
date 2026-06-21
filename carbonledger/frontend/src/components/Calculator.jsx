@@ -134,8 +134,8 @@ export default function Calculator({ onCalculationSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Primary Car Fuel Type</label>
-                <select name="carType" className="form-select" value={formData.carType} onChange={handleChange}>
+                <label htmlFor="carType" className="form-label">Primary Car Fuel Type</label>
+                <select id="carType" name="carType" className="form-select" value={formData.carType} onChange={handleChange}>
                   <option value="PETROL">Petrol/Gasoline</option>
                   <option value="DIESEL">Diesel</option>
                   <option value="HYBRID">Hybrid</option>
@@ -146,21 +146,21 @@ export default function Calculator({ onCalculationSuccess }) {
 
               {formData.carType !== 'NONE' && (
                 <div className="form-group">
-                  <label className="form-label">Weekly Commute (Kilometers)</label>
-                  <input type="number" name="carKmPerWeek" className="form-input" min="0" value={formData.carKmPerWeek} onChange={handleChange} />
+                  <label htmlFor="carKmPerWeek" className="form-label">Weekly Commute (Kilometers)</label>
+                  <input id="carKmPerWeek" type="number" name="carKmPerWeek" className="form-input" min="0" value={formData.carKmPerWeek} onChange={handleChange} />
                   {errors.carKmPerWeek && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>{errors.carKmPerWeek}</span>}
                 </div>
               )}
 
               <div className="form-group">
-                <label className="form-label">Weekly Public Transit Time (Hours)</label>
-                <input type="number" name="transitHoursPerWeek" className="form-input" min="0" value={formData.transitHoursPerWeek} onChange={handleChange} />
+                <label htmlFor="transitHoursPerWeek" className="form-label">Weekly Public Transit Time (Hours)</label>
+                <input id="transitHoursPerWeek" type="number" name="transitHoursPerWeek" className="form-input" min="0" value={formData.transitHoursPerWeek} onChange={handleChange} />
                 {errors.transitHoursPerWeek && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>{errors.transitHoursPerWeek}</span>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Flights taken per Year</label>
-                <input type="number" name="flightsPerYear" className="form-input" min="0" value={formData.flightsPerYear} onChange={handleChange} />
+                <label htmlFor="flightsPerYear" className="form-label">Flights taken per Year</label>
+                <input id="flightsPerYear" type="number" name="flightsPerYear" className="form-input" min="0" value={formData.flightsPerYear} onChange={handleChange} />
                 {errors.flightsPerYear && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>{errors.flightsPerYear}</span>}
               </div>
             </div>
@@ -175,8 +175,8 @@ export default function Calculator({ onCalculationSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Which best describes your diet?</label>
-                <select name="dietType" className="form-select" value={formData.dietType} onChange={handleChange}>
+                <label htmlFor="dietType" className="form-label">Which best describes your diet?</label>
+                <select id="dietType" name="dietType" className="form-select" value={formData.dietType} onChange={handleChange}>
                   <option value="MEAT_HEAVY">Meat-Heavy (Eat beef/pork daily)</option>
                   <option value="MEAT_LIGHT">Light Meat (Mostly chicken/fish, infrequent red meat)</option>
                   <option value="PESCATARIAN">Pescatarian (Fish but no other meat)</option>
@@ -199,22 +199,22 @@ export default function Calculator({ onCalculationSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Household Size (Number of members)</label>
-                <input type="number" name="householdSize" className="form-input" min="1" value={formData.householdSize} onChange={handleChange} />
+                <label htmlFor="householdSize" className="form-label">Household Size (Number of members)</label>
+                <input id="householdSize" type="number" name="householdSize" className="form-input" min="1" value={formData.householdSize} onChange={handleChange} />
                 {errors.householdSize && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>{errors.householdSize}</span>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Electricity Tariff Source</label>
-                <select name="homeEnergySource" className="form-select" value={formData.homeEnergySource} onChange={handleChange}>
+                <label htmlFor="homeEnergySource" className="form-label">Electricity Tariff Source</label>
+                <select id="homeEnergySource" name="homeEnergySource" className="form-select" value={formData.homeEnergySource} onChange={handleChange}>
                   <option value="GRID">Standard Utility Grid (Coal/Gas Mix)</option>
                   <option value="RENEWABLE">Green Energy / Solar Tariffs</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Home Heating Source</label>
-                <select name="heatingType" className="form-select" value={formData.heatingType} onChange={handleChange}>
+                <label htmlFor="heatingType" className="form-label">Home Heating Source</label>
+                <select id="heatingType" name="heatingType" className="form-select" value={formData.heatingType} onChange={handleChange}>
                   <option value="GAS">Natural Gas</option>
                   <option value="ELECTRIC">Electric Heat Pump / Radiator</option>
                   <option value="OIL">Oil Burner</option>
@@ -232,8 +232,8 @@ export default function Calculator({ onCalculationSuccess }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">How frequently do you buy clothing, gadgets, and homewares?</label>
-                <select name="shoppingHabits" className="form-select" value={formData.shoppingHabits} onChange={handleChange}>
+                <label htmlFor="shoppingHabits" className="form-label">How frequently do you buy clothing, gadgets, and homewares?</label>
+                <select id="shoppingHabits" name="shoppingHabits" className="form-select" value={formData.shoppingHabits} onChange={handleChange}>
                   <option value="MINIMAL">Minimalist (Buy only necessities, repair & recycle)</option>
                   <option value="AVERAGE">Average (Moderate purchases, replace devices when needed)</option>
                   <option value="HEAVY">Heavy Shopper (Frequent luxury/fast-fashion purchases)</option>
