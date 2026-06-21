@@ -79,4 +79,22 @@ public class ChallengeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void testCompleteNonExistentChallenge_NotFound() throws Exception {
+        mockMvc.perform(post("/api/challenges/999/complete")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void testCompleteNonActiveChallenge_BadRequest() throws Exception {
+        Challenge challenge = new Challenge("Inactive Title", "Desc", "DIET", 10.0, "EASY", 5);
+        challenge.setActive(false);
+        challenge = challengeRepository.save(challenge);
+
+        mockMvc.perform(post("/api/challenges/" + challenge.getId() + "/complete")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
 }
