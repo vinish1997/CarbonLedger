@@ -16,13 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -35,8 +34,8 @@ public class CarbonLedgerService {
     private final ActionLogRepository actionLogRepository;
 
     public CarbonLedgerService(ProfileRepository profileRepository,
-                      ChallengeRepository challengeRepository,
-                      ActionLogRepository actionLogRepository) {
+                               ChallengeRepository challengeRepository,
+                               ActionLogRepository actionLogRepository) {
         this.profileRepository = profileRepository;
         this.challengeRepository = challengeRepository;
         this.actionLogRepository = actionLogRepository;
@@ -65,39 +64,32 @@ public class CarbonLedgerService {
     @Transactional
     public void initSeeds() {
         if (challengeRepository.count() == 0) {
-            // Seed first 3 challenges initially
             challengeRepository.saveAll(MASTER_CHALLENGE_POOL.subList(0, 3));
         }
     }
 
     @Transactional
     public List<Challenge> rotateWeeklyChallenges() {
-        // Remove unaccepted, uncompleted available challenges directly in DB
         challengeRepository.deleteUnacceptedAndUncompletedChallenges();
         
-        // Avoid duplicate titles with active or completed goals using lightweight query
         Set<String> activeOrCompletedTitles = new HashSet<>(challengeRepository.findAllTitles());
         
-        // Find remaining eligible templates
-        List<Challenge> candidates = MASTER_CHALLENGE_POOL.stream()
+        var candidates = MASTER_CHALLENGE_POOL.stream()
                 .filter(c -> !activeOrCompletedTitles.contains(c.getTitle()))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         
         if (candidates.size() < 3) {
             Set<String> currentlyActiveTitles = new HashSet<>(challengeRepository.findActiveTitles());
             candidates = MASTER_CHALLENGE_POOL.stream()
                     .filter(c -> !currentlyActiveTitles.contains(c.getTitle()))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
         }
         
-        // Shuffle candidates list to get random goals
         Collections.shuffle(candidates);
-        List<Challenge> selectedTemplates = candidates.subList(0, Math.min(3, candidates.size()));
-        
-        List<Challenge> newChallenges = new ArrayList<>();
-        for (Challenge t : selectedTemplates) {
-            newChallenges.add(new Challenge(t.getTitle(), t.getDescription(), t.getCategory(), t.getCarbonSaving(), t.getDifficulty(), t.getDaysDuration()));
-        }
+        var newChallenges = candidates.stream()
+                .limit(3)
+                .map(t -> new Challenge(t.getTitle(), t.getDescription(), t.getCategory(), t.getCarbonSaving(), t.getDifficulty(), t.getDaysDuration()))
+                .toList();
         
         challengeRepository.saveAll(newChallenges);
         return challengeRepository.findAll();
@@ -113,7 +105,7 @@ public class CarbonLedgerService {
     @Transactional
     public Profile getOrCreateProfile() {
         return profileRepository.findById(1L).orElseGet(() -> {
-            Profile defaultProfile = new Profile();
+            var defaultProfile = new Profile();
             defaultProfile.setId(1L);
             defaultProfile.setCarKmPerWeek(150);
             defaultProfile.setCarType("PETROL");
@@ -125,7 +117,6 @@ public class CarbonLedgerService {
             defaultProfile.setHeatingType("GAS");
             defaultProfile.setShoppingHabits("AVERAGE");
             
-            // Standard baseline calculation
             defaultProfile.setTransportFootprint(2.9);
             defaultProfile.setDietFootprint(1.7);
             defaultProfile.setEnergyFootprint(1.75);
@@ -148,8 +139,7 @@ public class CarbonLedgerService {
 
     @Transactional
     public Challenge acceptChallenge(Long id) {
-        Challenge challenge = challengeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found with ID: " + id));
+        var challenge = getChallengeById(id);
         challenge.setActive(true);
         challenge.setCompleted(false);
         challenge.setDaysProgress(0);
@@ -158,16 +148,14 @@ public class CarbonLedgerService {
 
     @Transactional
     public Challenge completeChallenge(Long id) {
-        Challenge challenge = challengeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found with ID: " + id));
+        var challenge = getChallengeById(id);
         if (!challenge.isActive()) {
-            throw new IllegalStateException("Challenge is not active.");
+            throw new IllegalStateException("Challenge is not active and cannot be completed.");
         }
         challenge.setActive(false);
         challenge.setCompleted(true);
         challenge.setDaysProgress(challenge.getDaysDuration());
         
-        // Log action and record savings
         logAction("Completed Challenge: " + challenge.getTitle(), challenge.getCarbonSaving(), challenge.getCategory());
         
         return challengeRepository.save(challenge);
@@ -175,8 +163,8 @@ public class CarbonLedgerService {
 
     @Transactional
     public ActionLog logAction(String actionName, double carbonSaving, String category) {
-        String sanitizedActionName = sanitizeHtml(actionName);
-        ActionLog actionLog = new ActionLog(sanitizedActionName, carbonSaving, category.toUpperCase(), LocalDate.now());
+        var sanitizedActionName = sanitizeHtml(actionName);
+        var actionLog = new ActionLog(sanitizedActionName, carbonSaving, category.toUpperCase(), LocalDate.now());
         return actionLogRepository.save(actionLog);
     }
 
@@ -185,54 +173,52 @@ public class CarbonLedgerService {
     }
 
     public Map<String, Object> getDashboardData() {
-        Profile profile = getOrCreateProfile();
+        var profile = getOrCreateProfile();
         
-        // Execute a count query directly on DB
         long recentLogsCount = actionLogRepository.countByDateLoggedBetween(
                 LocalDate.now().minusDays(30), LocalDate.now()
         );
 
-        // Execute a single grouped query directly on DB
         List<Object[]> groupedSavings = actionLogRepository.getCarbonSavingsByCategory();
-        Map<String, Double> savingsByCategory = new HashMap<>();
-        double totalSavingsKg = 0.0;
         
-        for (Object[] row : groupedSavings) {
-            String category = (String) row[0];
-            Double saving = (Double) row[1];
-            if (category != null && saving != null) {
-                savingsByCategory.put(category, saving);
-                totalSavingsKg += saving;
-            }
-        }
+        var savingsByCategory = groupedSavings.stream()
+                .filter(row -> row[0] != null && row[1] != null)
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Double) row[1]
+                ));
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("profile", new ProfileDTO(profile));
-        data.put("totalSavingsKg", Math.round(totalSavingsKg * 100.0) / 100.0);
-        data.put("savingsByCategory", savingsByCategory);
-        data.put("recentLogsCount", (int) recentLogsCount);
-        
-        // Math equivalents
-        data.put("equivalentTreesPlanted", Math.round((totalSavingsKg / 22.0) * 10.0) / 10.0); // 1 tree absorbs ~22kg CO2 per year
-        data.put("equivalentSmartphonesCharged", Math.round((totalSavingsKg * 120.0))); // ~120 charges per kg CO2
-        data.put("equivalentGasSavedLiters", Math.round((totalSavingsKg / 2.3) * 10.0) / 10.0); // 1 liter of petrol ~ 2.3kg CO2
+        double totalSavingsKg = savingsByCategory.values().stream().mapToDouble(Double::doubleValue).sum();
 
-        return data;
+        return Map.of(
+                "profile", new ProfileDTO(profile),
+                "totalSavingsKg", Math.round(totalSavingsKg * 100.0) / 100.0,
+                "savingsByCategory", savingsByCategory,
+                "recentLogsCount", (int) recentLogsCount,
+                "equivalentTreesPlanted", Math.round((totalSavingsKg / 22.0) * 10.0) / 10.0,
+                "equivalentSmartphonesCharged", Math.round(totalSavingsKg * 120.0),
+                "equivalentGasSavedLiters", Math.round((totalSavingsKg / 2.3) * 10.0) / 10.0
+        );
+    }
+
+    private Challenge getChallengeById(Long id) {
+        return challengeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Challenge not found with ID: " + id));
     }
 
     private String sanitizeHtml(String input) {
         if (input == null) return null;
-        StringBuilder sb = new StringBuilder(input.length() + 16);
+        var sb = new StringBuilder(input.length() + 16);
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
             switch (c) {
-                case '&': sb.append("&amp;"); break;
-                case '<': sb.append("&lt;"); break;
-                case '>': sb.append("&gt;"); break;
-                case '"': sb.append("&quot;"); break;
-                case '\'': sb.append("&#x27;"); break;
-                case '/': sb.append("&#x2F;"); break;
-                default: sb.append(c); break;
+                case '&' -> sb.append("&amp;");
+                case '<' -> sb.append("&lt;");
+                case '>' -> sb.append("&gt;");
+                case '"' -> sb.append("&quot;");
+                case '\'' -> sb.append("&#x27;");
+                case '/' -> sb.append("&#x2F;");
+                default -> sb.append(c);
             }
         }
         return sb.toString();
