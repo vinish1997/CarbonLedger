@@ -1,15 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { api } from '../utils/api';
-import { Calendar, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function History({ triggerRefresh }) {
+/** --- HELPER FUNCTIONS --- */
+const getCategoryColor = (cat) => {
+  switch (cat?.toUpperCase()) {
+    case 'TRANSPORTATION': return '#34d399';
+    case 'DIET': return '#60a5fa';
+    case 'ENERGY': return '#fbbf24';
+    case 'CONSUMPTION': return '#ef4444';
+    default: return '#f87171';
+  }
+};
+
+/** --- CUSTOM HOOK FOR LOGIC --- */
+const useHistoryLogic = (triggerRefresh) => {
   const [logs, setLogs] = useState([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getHistory(page, 8); // Load 8 items per page
@@ -21,20 +34,79 @@ export default function History({ triggerRefresh }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     fetchHistory();
-  }, [page, triggerRefresh]);
+  }, [fetchHistory, triggerRefresh]);
 
-  const getCategoryColor = (cat) => {
-    switch (cat.toUpperCase()) {
-      case 'TRANSPORTATION': return '#34d399';
-      case 'DIET': return '#60a5fa';
-      case 'ENERGY': return '#fbbf24';
-      default: return '#f87171';
-    }
+  const handleNextPage = useCallback(() => {
+    setPage((p) => Math.min(totalPages - 1, p + 1));
+  }, [totalPages]);
+
+  const handlePrevPage = useCallback(() => {
+    setPage((p) => Math.max(0, p - 1));
+  }, []);
+
+  return { 
+    logs, page, totalPages, totalElements, loading, 
+    handleNextPage, handlePrevPage 
   };
+};
+
+/** --- SUB-COMPONENTS --- */
+const HistoryRow = React.memo(({ log }) => {
+  const categoryColor = getCategoryColor(log.category);
+  
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border-glass)', transition: 'var(--transition-smooth)' }} className="table-row">
+      <td style={{ padding: '18px 24px', fontWeight: '500' }}>{log.actionName}</td>
+      <td style={{ padding: '18px 24px' }}>
+        <span 
+          style={{ 
+            fontSize: '11px', 
+            textTransform: 'uppercase', 
+            color: categoryColor, 
+            background: `${categoryColor}15`, 
+            padding: '4px 8px', 
+            borderRadius: '4px', 
+            fontWeight: '700', 
+            border: `1px solid ${categoryColor}20` 
+          }}
+        >
+          {log.category}
+        </span>
+      </td>
+      <td style={{ padding: '18px 24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={14} color="var(--text-muted)" />
+          {log.dateLogged}
+        </div>
+      </td>
+      <td style={{ padding: '18px 24px', textAlign: 'right', fontWeight: '600', color: 'var(--primary)' }}>
+        -{log.carbonSaving} kg CO2e
+      </td>
+    </tr>
+  );
+});
+
+HistoryRow.propTypes = {
+  log: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    actionName: PropTypes.string.isRequired,
+    category: PropTypes.string.isRequired,
+    dateLogged: PropTypes.string.isRequired,
+    carbonSaving: PropTypes.number.isRequired,
+  }).isRequired
+};
+HistoryRow.displayName = 'HistoryRow';
+
+/** --- MAIN COMPONENT --- */
+export default function History({ triggerRefresh }) {
+  const { 
+    logs, page, totalPages, totalElements, loading, 
+    handleNextPage, handlePrevPage 
+  } = useHistoryLogic(triggerRefresh);
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -68,24 +140,8 @@ export default function History({ triggerRefresh }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border-glass)', transition: 'var(--transition-smooth)' }} className="table-row">
-                      <td style={{ padding: '18px 24px', fontWeight: '500' }}>{log.actionName}</td>
-                      <td style={{ padding: '18px 24px' }}>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: getCategoryColor(log.category), background: `${getCategoryColor(log.category)}15`, padding: '4px 8px', borderRadius: '4px', fontWeight: '700', border: `1px solid ${getCategoryColor(log.category)}20` }}>
-                          {log.category}
-                        </span>
-                      </td>
-                      <td style={{ padding: '18px 24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Calendar size={14} color="var(--text-muted)" />
-                          {log.dateLogged}
-                        </div>
-                      </td>
-                      <td style={{ padding: '18px 24px', textAlign: 'right', fontWeight: '600', color: 'var(--primary)' }}>
-                        -{log.carbonSaving} kg CO2e
-                      </td>
-                    </tr>
+                  {logs.map((log, index) => (
+                    <HistoryRow key={log.id || index} log={log} />
                   ))}
                 </tbody>
               </table>
@@ -99,18 +155,20 @@ export default function History({ triggerRefresh }) {
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
+                    type="button"
                     className="btn-secondary"
                     style={{ padding: '8px 12px' }}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    onClick={handlePrevPage}
                     disabled={page === 0}
                     aria-label="Previous page"
                   >
                     <ChevronLeft size={16} /> Prev
                   </button>
                   <button
+                    type="button"
                     className="btn-secondary"
                     style={{ padding: '8px 12px' }}
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    onClick={handleNextPage}
                     disabled={page === totalPages - 1}
                     aria-label="Next page"
                   >
@@ -129,3 +187,7 @@ export default function History({ triggerRefresh }) {
     </div>
   );
 }
+
+History.propTypes = {
+  triggerRefresh: PropTypes.any
+};

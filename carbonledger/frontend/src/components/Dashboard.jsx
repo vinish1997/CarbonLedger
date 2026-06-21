@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '../utils/api';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import PropTypes from 'prop-types';
 import { Leaf, Award, Compass, Zap, Flame, Bike, UtensilsCrossed, Trash2 } from 'lucide-react';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
@@ -178,6 +179,16 @@ const StatCard = React.memo(({ title, value, unit, description, icon: Icon, colo
   </div>
 ));
 
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  unit: PropTypes.string,
+  description: PropTypes.string.isRequired,
+  icon: PropTypes.elementType.isRequired,
+  colorClass: PropTypes.string.isRequired,
+  iconColor: PropTypes.string.isRequired
+};
+
 StatCard.displayName = 'StatCard';
 
 const InsightCard = React.memo(({ title, text, type }) => {
@@ -212,6 +223,12 @@ const InsightCard = React.memo(({ title, text, type }) => {
   );
 });
 
+InsightCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  text: PropTypes.string.isRequired,
+  type: PropTypes.string.isRequired
+};
+
 InsightCard.displayName = 'InsightCard';
 
 const EquivalentCard = React.memo(({ title, value, icon: Icon, glowColor, iconColor }) => (
@@ -225,6 +242,14 @@ const EquivalentCard = React.memo(({ title, value, icon: Icon, glowColor, iconCo
     </div>
   </div>
 ));
+
+EquivalentCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  icon: PropTypes.elementType.isRequired,
+  glowColor: PropTypes.string.isRequired,
+  iconColor: PropTypes.string.isRequired
+};
 
 EquivalentCard.displayName = 'EquivalentCard';
 
@@ -270,6 +295,10 @@ const QuickActionLogger = React.memo(({ handleQuickLog }) => (
     </div>
   </div>
 ));
+
+QuickActionLogger.propTypes = {
+  handleQuickLog: PropTypes.func.isRequired
+};
 
 QuickActionLogger.displayName = 'QuickActionLogger';
 
@@ -440,8 +469,11 @@ export default function Dashboard({ triggerRefresh }) {
         </div>
       </div>
 
-      {/* Quick Action Logger */}
       <QuickActionLogger handleQuickLog={handleQuickLog} />
     </div>
   );
 }
+
+Dashboard.propTypes = {
+  triggerRefresh: PropTypes.any
+};

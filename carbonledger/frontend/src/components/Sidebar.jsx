@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Calculator, Trophy, History, Leaf } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 export default function Sidebar({ activeTab, setActiveTab }) {
   const menuItems = [
@@ -69,3 +70,8 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     </aside>
   );
 }
+
+Sidebar.propTypes = {
+  activeTab: PropTypes.string.isRequired,
+  setActiveTab: PropTypes.func.isRequired
+};

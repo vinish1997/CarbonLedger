@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '../utils/api';
 import { ShieldCheck, Calendar, Zap, AlertCircle, RefreshCw } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 // Custom Hook to manage challenges state, timers, and operations
 function useChallenges(onChallengeAction) {
@@ -177,6 +178,22 @@ const ChallengeCard = React.memo(({ challenge, isAccepting, onAction, actionLabe
   );
 });
 
+ChallengeCard.propTypes = {
+  challenge: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    category: PropTypes.string.isRequired,
+    difficulty: PropTypes.string,
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    carbonSaving: PropTypes.number.isRequired,
+    daysDuration: PropTypes.number
+  }).isRequired,
+  isAccepting: PropTypes.bool.isRequired,
+  onAction: PropTypes.func.isRequired,
+  actionLabel: PropTypes.string.isRequired,
+  getCategoryColor: PropTypes.func.isRequired
+};
+
 ChallengeCard.displayName = 'ChallengeCard';
 
 // Sub-component for individual completed challenges
@@ -192,6 +209,16 @@ const CompletedChallengeCard = React.memo(({ challenge }) => (
     <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{challenge.description}</p>
   </div>
 ));
+
+CompletedChallengeCard.propTypes = {
+  challenge: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    category: PropTypes.string.isRequired,
+    carbonSaving: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string
+  }).isRequired
+};
 
 CompletedChallengeCard.displayName = 'CompletedChallengeCard';
 
@@ -336,3 +363,7 @@ export default function Challenges({ onChallengeAction }) {
     </div>
   );
 }
+
+Challenges.propTypes = {
+  onChallengeAction: PropTypes.func
+};
