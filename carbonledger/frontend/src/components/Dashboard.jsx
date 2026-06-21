@@ -338,7 +338,7 @@ export default function Dashboard({ triggerRefresh }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         <StatCard 
           title="Baseline Footprint"
-          value={profile.totalFootprint}
+          value={profile.totalFootprint || 0}
           unit="Tons CO2e/Yr"
           description="Your baseline footprint is based on onboarding responses."
           icon={Leaf}
@@ -347,7 +347,7 @@ export default function Dashboard({ triggerRefresh }) {
         />
         <StatCard 
           title="Total Saved Carbon"
-          value={data?.totalSavingsKg}
+          value={data?.totalSavingsKg || 0}
           unit="kg CO2e"
           description="Accumulated from active challenges and quick action logging."
           icon={Award}
@@ -356,7 +356,7 @@ export default function Dashboard({ triggerRefresh }) {
         />
         <StatCard 
           title="Eco Benchmark Comparison"
-          value={profile.totalFootprint > 4.0 ? 'Above Target' : 'Below Target'}
+          value={(profile.totalFootprint || 0) > 4.0 ? 'Above Target' : 'Below Target'}
           unit=""
           description="Global safe climate ceiling is ~4.0 tons. Global average is ~4.8 tons."
           icon={Compass}
@@ -392,21 +392,21 @@ export default function Dashboard({ triggerRefresh }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
           <EquivalentCard 
             title="Trees growing (1 yr)"
-            value={data?.equivalentTreesPlanted}
+            value={data?.equivalentTreesPlanted || 0}
             icon={Leaf}
             glowColor="var(--primary-glow)"
             iconColor="var(--primary)"
           />
           <EquivalentCard 
             title="Smartphones charged"
-            value={data?.equivalentSmartphonesCharged}
+            value={data?.equivalentSmartphonesCharged || 0}
             icon={Zap}
             glowColor="var(--secondary-glow)"
             iconColor="var(--secondary)"
           />
           <EquivalentCard 
             title="Liters of Petrol saved"
-            value={data?.equivalentGasSavedLiters}
+            value={data?.equivalentGasSavedLiters || 0}
             icon={Flame}
             glowColor="var(--warning-glow)"
             iconColor="var(--warning)"
