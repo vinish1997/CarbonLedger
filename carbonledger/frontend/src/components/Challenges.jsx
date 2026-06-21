@@ -79,13 +79,13 @@ export default function Challenges({ onChallengeAction }) {
     }
   };
 
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading eco-challenges...</div>;
-  }
-
   const activeChallenges = React.useMemo(() => challenges.filter((c) => c.active), [challenges]);
   const availableChallenges = React.useMemo(() => challenges.filter((c) => !c.active && !c.completed), [challenges]);
   const completedChallenges = React.useMemo(() => challenges.filter((c) => c.completed), [challenges]);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading eco-challenges...</div>;
+  }
 
   const getCategoryColor = (cat) => {
     switch (cat.toUpperCase()) {

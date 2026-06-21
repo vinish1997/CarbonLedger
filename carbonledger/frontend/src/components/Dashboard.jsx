@@ -5,6 +5,13 @@ import { Leaf, Award, Compass, Zap, Flame, Bike, UtensilsCrossed, Trash2 } from 
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
+const QUICK_ACTIONS = [
+  { label: 'Cycle instead of car', saving: 2.5, category: 'TRANSPORTATION', icon: Bike, color: '#10b981' },
+  { label: 'Eat Vegan Meal', saving: 1.2, category: 'DIET', icon: UtensilsCrossed, color: '#3b82f6' },
+  { label: 'Cold wash laundry', saving: 0.8, category: 'ENERGY', icon: Zap, color: '#f59e0b' },
+  { label: 'Declined plastic bags', saving: 0.4, category: 'CONSUMPTION', icon: Trash2, color: '#ef4444' }
+];
+
 export default function Dashboard({ triggerRefresh }) {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -99,29 +106,22 @@ export default function Dashboard({ triggerRefresh }) {
     return insights;
   }, [profile]);
 
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading Carbon Metrics...</div>;
-  }
-
-  const breakdownData = [
+  const breakdownData = useMemo(() => [
     { name: 'Transportation', value: profile.transportFootprint || 0 },
     { name: 'Diet', value: profile.dietFootprint || 0 },
     { name: 'Energy', value: profile.energyFootprint || 0 },
     { name: 'Consumption', value: profile.consumptionFootprint || 0 }
-  ];
+  ], [profile.transportFootprint, profile.dietFootprint, profile.energyFootprint, profile.consumptionFootprint]);
 
   // Convert history array to a format compatible with Recharts (savings over last 7 entries)
-  const savingsChartData = history.slice().reverse().map(log => ({
+  const savingsChartData = useMemo(() => history.slice().reverse().map(log => ({
     name: log.actionName.length > 18 ? log.actionName.substring(0, 15) + '...' : log.actionName,
     saving: log.carbonSaving
-  }));
+  })), [history]);
 
-  const quickActions = [
-    { label: 'Cycle instead of car', saving: 2.5, category: 'TRANSPORTATION', icon: Bike, color: '#10b981' },
-    { label: 'Eat Vegan Meal', saving: 1.2, category: 'DIET', icon: UtensilsCrossed, color: '#3b82f6' },
-    { label: 'Cold wash laundry', saving: 0.8, category: 'ENERGY', icon: Zap, color: '#f59e0b' },
-    { label: 'Declined plastic bags', saving: 0.4, category: 'CONSUMPTION', icon: Trash2, color: '#ef4444' }
-  ];
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading Carbon Metrics...</div>;
+  }
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -327,7 +327,7 @@ export default function Dashboard({ triggerRefresh }) {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          {quickActions.map((action, idx) => {
+          {QUICK_ACTIONS.map((action, idx) => {
             const Icon = action.icon;
             return (
               <button
