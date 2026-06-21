@@ -1,15 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '../utils/api';
 import { ShieldCheck, Calendar, Zap, AlertCircle, RefreshCw } from 'lucide-react';
 
-export default function Challenges({ onChallengeAction }) {
+// Custom Hook to manage challenges state, timers, and operations
+function useChallenges(onChallengeAction) {
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
+  const isMounted = useRef(true);
 
-  const updateTimeLeft = () => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const fetchChallenges = useCallback(async () => {
+    try {
+      const data = await api.getChallenges();
+      if (isMounted.current) {
+        setChallenges(data);
+      }
+    } catch (err) {
+      if (isMounted.current) {
+        setError('Failed to fetch challenges.');
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  const updateTimeLeft = useCallback(() => {
     const now = new Date();
     const nextMonday = new Date();
     nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
@@ -17,7 +43,7 @@ export default function Challenges({ onChallengeAction }) {
     
     const diffMs = nextMonday - now;
     if (diffMs <= 0) {
-      setTimeLeft('Rotating...');
+      if (isMounted.current) setTimeLeft('Rotating...');
       return;
     }
     
@@ -25,76 +51,176 @@ export default function Challenges({ onChallengeAction }) {
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     
-    setTimeLeft(`${days}d ${hours}h ${mins}m`);
-  };
-
-  const fetchChallenges = async () => {
-    try {
-      const data = await api.getChallenges();
-      setChallenges(data);
-    } catch (err) {
-      setError('Failed to fetch challenges.');
-    } finally {
-      setLoading(false);
+    if (isMounted.current) {
+      setTimeLeft(`${days}d ${hours}h ${mins}m`);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchChallenges();
     updateTimeLeft();
     const interval = setInterval(updateTimeLeft, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchChallenges, updateTimeLeft]);
 
-  const handleRotate = async () => {
-    setRolling(true);
-    setError(null);
+  const handleRotate = useCallback(async () => {
+    if (isMounted.current) {
+      setRolling(true);
+      setError(null);
+    }
     try {
       await api.rotateChallenges();
       await fetchChallenges();
     } catch (err) {
-      setError('Failed to roll new challenges.');
+      if (isMounted.current) {
+        setError('Failed to roll new challenges.');
+      }
     } finally {
-      setTimeout(() => setRolling(false), 800);
+      setTimeout(() => {
+        if (isMounted.current) {
+          setRolling(false);
+        }
+      }, 800);
     }
-  };
+  }, [fetchChallenges]);
 
-  const handleAccept = async (id) => {
+  const handleAccept = useCallback(async (id) => {
     try {
       await api.acceptChallenge(id);
-      fetchChallenges();
+      await fetchChallenges();
       if (onChallengeAction) onChallengeAction();
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [fetchChallenges, onChallengeAction]);
 
-  const handleComplete = async (id) => {
+  const handleComplete = useCallback(async (id) => {
     try {
       await api.completeChallenge(id);
-      fetchChallenges();
+      await fetchChallenges();
       if (onChallengeAction) onChallengeAction();
     } catch (err) {
       console.error(err);
     }
+  }, [fetchChallenges, onChallengeAction]);
+
+  const activeChallenges = useMemo(() => challenges.filter((c) => c.active), [challenges]);
+  const availableChallenges = useMemo(() => challenges.filter((c) => !c.active && !c.completed), [challenges]);
+  const completedChallenges = useMemo(() => challenges.filter((c) => c.completed), [challenges]);
+
+  return {
+    loading,
+    error,
+    rolling,
+    timeLeft,
+    activeChallenges,
+    availableChallenges,
+    completedChallenges,
+    handleRotate,
+    handleAccept,
+    handleComplete
   };
+}
 
-  const activeChallenges = React.useMemo(() => challenges.filter((c) => c.active), [challenges]);
-  const availableChallenges = React.useMemo(() => challenges.filter((c) => !c.active && !c.completed), [challenges]);
-  const completedChallenges = React.useMemo(() => challenges.filter((c) => c.completed), [challenges]);
+// Sub-component for individual active and available challenges
+const ChallengeCard = React.memo(({ challenge, isAccepting, onAction, actionLabel, getCategoryColor }) => {
+  const categoryColor = getCategoryColor(challenge.category);
+  return (
+    <div 
+      className="glass-card" 
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between', 
+        minHeight: '220px', 
+        borderColor: !isAccepting ? 'var(--primary)' : 'var(--border-glass)'
+      }}
+    >
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span 
+            style={{ 
+              fontSize: '11px', 
+              textTransform: 'uppercase', 
+              color: categoryColor, 
+              background: `${categoryColor}15`, 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              fontWeight: '700', 
+              border: `1px solid ${categoryColor}20` 
+            }}
+          >
+            {challenge.category}
+          </span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{challenge.difficulty}</span>
+        </div>
+        <h4 style={{ fontSize: '18px', marginBottom: '8px' }}>{challenge.title}</h4>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '16px' }}>
+          {challenge.description}
+        </p>
+      </div>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', borderTop: '1px solid var(--border-glass)', paddingTop: '12px' }}>
+          <span>Savings: <b>-{challenge.carbonSaving}kg</b></span>
+          <span>Duration: <b>{challenge.daysDuration} days</b></span>
+        </div>
+        <button 
+          className={!isAccepting ? "btn-primary" : "btn-secondary"} 
+          style={{ width: '100%' }} 
+          onClick={() => onAction(challenge.id)} 
+          aria-label={!isAccepting ? `Complete and claim points for challenge: ${challenge.title}` : `Accept challenge: ${challenge.title}`}
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </div>
+  );
+});
 
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading eco-challenges...</div>;
-  }
+ChallengeCard.displayName = 'ChallengeCard';
 
-  const getCategoryColor = (cat) => {
+// Sub-component for individual completed challenges
+const CompletedChallengeCard = React.memo(({ challenge }) => (
+  <div className="glass-card" style={{ opacity: 0.7, background: 'rgba(14, 20, 36, 0.4)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '4px' }}>
+        {challenge.category}
+      </span>
+      <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>✓ Saved {challenge.carbonSaving}kg</span>
+    </div>
+    <h4 style={{ fontSize: '18px', marginBottom: '8px', textDecoration: 'line-through' }}>{challenge.title}</h4>
+    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{challenge.description}</p>
+  </div>
+));
+
+CompletedChallengeCard.displayName = 'CompletedChallengeCard';
+
+export default function Challenges({ onChallengeAction }) {
+  const {
+    loading,
+    error,
+    rolling,
+    timeLeft,
+    activeChallenges,
+    availableChallenges,
+    completedChallenges,
+    handleRotate,
+    handleAccept,
+    handleComplete
+  } = useChallenges(onChallengeAction);
+
+  const getCategoryColor = useCallback((cat) => {
     switch (cat.toUpperCase()) {
       case 'TRANSPORTATION': return '#34d399';
       case 'DIET': return '#60a5fa';
       case 'ENERGY': return '#fbbf24';
       default: return '#f87171';
     }
-  };
+  }, []);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>Loading eco-challenges...</div>;
+  }
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -121,27 +247,14 @@ export default function Challenges({ onChallengeAction }) {
         {activeChallenges.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             {activeChallenges.map((c) => (
-              <div key={c.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', borderColor: 'var(--primary)' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: getCategoryColor(c.category), background: `${getCategoryColor(c.category)}15`, padding: '4px 8px', borderRadius: '4px', fontWeight: '700', border: `1px solid ${getCategoryColor(c.category)}20` }}>
-                      {c.category}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.difficulty}</span>
-                  </div>
-                  <h4 style={{ fontSize: '18px', marginBottom: '8px' }}>{c.title}</h4>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '16px' }}>{c.description}</p>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', borderTop: '1px solid var(--border-glass)', paddingTop: '12px' }}>
-                    <span>Savings: <b>-{c.carbonSaving}kg</b></span>
-                    <span>Duration: <b>{c.daysDuration} days</b></span>
-                  </div>
-                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => handleComplete(c.id)} aria-label={`Complete and claim points for challenge: ${c.title}`}>
-                    Complete & Claim Points
-                  </button>
-                </div>
-              </div>
+              <ChallengeCard
+                key={c.id}
+                challenge={c}
+                isAccepting={false}
+                onAction={handleComplete}
+                actionLabel="Complete & Claim Points"
+                getCategoryColor={getCategoryColor}
+              />
             ))}
           </div>
         ) : (
@@ -189,27 +302,14 @@ export default function Challenges({ onChallengeAction }) {
         {availableChallenges.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             {availableChallenges.map((c) => (
-              <div key={c.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: getCategoryColor(c.category), background: `${getCategoryColor(c.category)}15`, padding: '4px 8px', borderRadius: '4px', fontWeight: '700', border: `1px solid ${getCategoryColor(c.category)}20` }}>
-                      {c.category}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.difficulty}</span>
-                  </div>
-                  <h4 style={{ fontSize: '18px', marginBottom: '8px' }}>{c.title}</h4>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '16px' }}>{c.description}</p>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', borderTop: '1px solid var(--border-glass)', paddingTop: '12px' }}>
-                    <span>Savings: <b>-{c.carbonSaving}kg</b></span>
-                    <span>Duration: <b>{c.daysDuration} days</b></span>
-                  </div>
-                  <button className="btn-secondary" style={{ width: '100%' }} onClick={() => handleAccept(c.id)} aria-label={`Accept challenge: ${c.title}`}>
-                    Accept Goal
-                  </button>
-                </div>
-              </div>
+              <ChallengeCard
+                key={c.id}
+                challenge={c}
+                isAccepting={true}
+                onAction={handleAccept}
+                actionLabel="Accept Goal"
+                getCategoryColor={getCategoryColor}
+              />
             ))}
           </div>
         ) : (
@@ -228,16 +328,7 @@ export default function Challenges({ onChallengeAction }) {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             {completedChallenges.map((c) => (
-              <div key={c.id} className="glass-card" style={{ opacity: 0.7, background: 'rgba(14, 20, 36, 0.4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '4px' }}>
-                    {c.category}
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>✓ Saved {c.carbonSaving}kg</span>
-                </div>
-                <h4 style={{ fontSize: '18px', marginBottom: '8px', textDecoration: 'line-through' }}>{c.title}</h4>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{c.description}</p>
-              </div>
+              <CompletedChallengeCard key={c.id} challenge={c} />
             ))}
           </div>
         </div>
