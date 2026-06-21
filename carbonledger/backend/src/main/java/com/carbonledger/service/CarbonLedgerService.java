@@ -172,7 +172,18 @@ public class CarbonLedgerService {
         return actionLogRepository.findAllByOrderByDateLoggedDesc(pageable);
     }
 
-    public Map<String, Object> getDashboardData() {
+    // Using a Java 14 Record for Data Transfer Object
+    public record DashboardDataDTO(
+        ProfileDTO profile,
+        double totalSavingsKg,
+        Map<String, Double> savingsByCategory,
+        int recentLogsCount,
+        double equivalentTreesPlanted,
+        long equivalentSmartphonesCharged,
+        double equivalentGasSavedLiters
+    ) {}
+
+    public DashboardDataDTO getDashboardData() {
         var profile = getOrCreateProfile();
         
         long recentLogsCount = actionLogRepository.countByDateLoggedBetween(
@@ -190,14 +201,14 @@ public class CarbonLedgerService {
 
         double totalSavingsKg = savingsByCategory.values().stream().mapToDouble(Double::doubleValue).sum();
 
-        return Map.of(
-                "profile", new ProfileDTO(profile),
-                "totalSavingsKg", Math.round(totalSavingsKg * 100.0) / 100.0,
-                "savingsByCategory", savingsByCategory,
-                "recentLogsCount", (int) recentLogsCount,
-                "equivalentTreesPlanted", Math.round((totalSavingsKg / 22.0) * 10.0) / 10.0,
-                "equivalentSmartphonesCharged", Math.round(totalSavingsKg * 120.0),
-                "equivalentGasSavedLiters", Math.round((totalSavingsKg / 2.3) * 10.0) / 10.0
+        return new DashboardDataDTO(
+                new ProfileDTO(profile),
+                Math.round(totalSavingsKg * 100.0) / 100.0,
+                savingsByCategory,
+                (int) recentLogsCount,
+                Math.round((totalSavingsKg / 22.0) * 10.0) / 10.0,
+                Math.round(totalSavingsKg * 120.0),
+                Math.round((totalSavingsKg / 2.3) * 10.0) / 10.0
         );
     }
 
