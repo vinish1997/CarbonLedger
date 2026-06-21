@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Calculator from './components/Calculator';
@@ -6,21 +6,41 @@ import Challenges from './components/Challenges';
 import History from './components/History';
 import './App.css';
 
-function App() {
+/** --- CUSTOM HOOK FOR LOGIC --- */
+const useAppNavigation = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
-  };
+  }, []);
 
-  const handleCalculationSuccess = () => {
+  const handleCalculationSuccess = useCallback(() => {
     handleRefresh();
     // Redirect user back to dashboard after completing calculation so they see new scores!
     setTimeout(() => {
       setActiveTab('dashboard');
     }, 1500);
+  }, [handleRefresh]);
+
+  return { 
+    activeTab, 
+    setActiveTab, 
+    refreshTrigger, 
+    handleRefresh, 
+    handleCalculationSuccess 
   };
+};
+
+/** --- MAIN COMPONENT --- */
+function App() {
+  const { 
+    activeTab, 
+    setActiveTab, 
+    refreshTrigger, 
+    handleRefresh, 
+    handleCalculationSuccess 
+  } = useAppNavigation();
 
   return (
     <div className="app-container">
