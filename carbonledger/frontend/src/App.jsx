@@ -28,19 +28,27 @@ function App() {
       
       <main className="main-content">
         {activeTab === 'dashboard' && (
-          <Dashboard triggerRefresh={refreshTrigger} />
+          <div role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" style={{ width: '100%' }}>
+            <Dashboard triggerRefresh={refreshTrigger} />
+          </div>
         )}
         
         {activeTab === 'calculator' && (
-          <Calculator onCalculationSuccess={handleCalculationSuccess} />
+          <div role="tabpanel" id="panel-calculator" aria-labelledby="tab-calculator" style={{ width: '100%' }}>
+            <Calculator onCalculationSuccess={handleCalculationSuccess} />
+          </div>
         )}
         
         {activeTab === 'challenges' && (
-          <Challenges onChallengeAction={handleRefresh} />
+          <div role="tabpanel" id="panel-challenges" aria-labelledby="tab-challenges" style={{ width: '100%' }}>
+            <Challenges onChallengeAction={handleRefresh} />
+          </div>
         )}
         
         {activeTab === 'history' && (
-          <History triggerRefresh={refreshTrigger} />
+          <div role="tabpanel" id="panel-history" aria-labelledby="tab-history" style={{ width: '100%' }}>
+            <History triggerRefresh={refreshTrigger} />
+          </div>
         )}
       </main>
     </div>

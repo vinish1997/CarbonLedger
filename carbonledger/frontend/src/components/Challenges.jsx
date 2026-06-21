@@ -137,7 +137,7 @@ export default function Challenges({ onChallengeAction }) {
                     <span>Savings: <b>-{c.carbonSaving}kg</b></span>
                     <span>Duration: <b>{c.daysDuration} days</b></span>
                   </div>
-                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => handleComplete(c.id)}>
+                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => handleComplete(c.id)} aria-label={`Complete and claim points for challenge: ${c.title}`}>
                     Complete & Claim Points
                   </button>
                 </div>
@@ -205,7 +205,7 @@ export default function Challenges({ onChallengeAction }) {
                     <span>Savings: <b>-{c.carbonSaving}kg</b></span>
                     <span>Duration: <b>{c.daysDuration} days</b></span>
                   </div>
-                  <button className="btn-secondary" style={{ width: '100%' }} onClick={() => handleAccept(c.id)}>
+                  <button className="btn-secondary" style={{ width: '100%' }} onClick={() => handleAccept(c.id)} aria-label={`Accept challenge: ${c.title}`}>
                     Accept Goal
                   </button>
                 </div>

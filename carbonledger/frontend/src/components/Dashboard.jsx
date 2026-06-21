@@ -237,6 +237,7 @@ export default function Dashboard({ triggerRefresh }) {
               <button
                 key={idx}
                 onClick={() => handleQuickLog(action.label, action.saving, action.category)}
+                aria-label={`Log action: ${action.label}. Saves ${action.saving} kilograms of carbon.`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

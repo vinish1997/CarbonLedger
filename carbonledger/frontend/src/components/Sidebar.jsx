@@ -15,18 +15,22 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         <div style={{ background: 'var(--primary-glow)', padding: '8px', borderRadius: '10px', border: '1px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Leaf size={24} color="var(--primary)" />
         </div>
-        <span className="logo-text" style={{ fontSize: '22px', fontWeight: '800', background: 'linear-gradient(90deg, #10b981, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 className="logo-text" style={{ fontSize: '22px', fontWeight: '800', background: 'linear-gradient(90deg, #10b981, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
           CarbonLedger
-        </span>
+        </h1>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+      <nav role="tablist" aria-label="Main Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
+              role="tab"
+              id={`tab-${item.id}`}
+              aria-selected={isActive}
+              aria-controls={`panel-${item.id}`}
               onClick={() => setActiveTab(item.id)}
               style={{
                 display: 'flex',

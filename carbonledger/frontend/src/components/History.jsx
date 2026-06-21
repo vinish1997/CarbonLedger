@@ -103,6 +103,7 @@ export default function History({ triggerRefresh }) {
                     style={{ padding: '8px 12px' }}
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
                     disabled={page === 0}
+                    aria-label="Previous page"
                   >
                     <ChevronLeft size={16} /> Prev
                   </button>
@@ -111,6 +112,7 @@ export default function History({ triggerRefresh }) {
                     style={{ padding: '8px 12px' }}
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                     disabled={page === totalPages - 1}
+                    aria-label="Next page"
                   >
                     Next <ChevronRight size={16} />
                   </button>
