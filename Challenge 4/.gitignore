@@ -1,0 +1,15 @@
+# Maven/Spring Boot build outputs
+**/target/
+**/.idea/
+**/*.iml
+**/*.class
+
+# Node/React build outputs
+**/node_modules/
+**/dist/
+**/.env*
+**/*.local
+
+# OS files
+.DS_Store
+Thumbs.db
